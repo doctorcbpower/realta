@@ -4,7 +4,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`realta` is a Monte Carlo simulation code designed for modeling High-Mass X-ray Binaries (HMXRBs) and stellar populations in globular clusters. In its initial commit, it's a refactoring of the FORTRAN90 code used in [Power et al. (2009, MNRAS, 395, 1146](https://ui.adsabs.harvard.edu/abs/2009MNRAS.395.1146P/abstract)
+`realta` is a Monte Carlo simulation code designed for modeling High-Mass X-ray Binaries (HMXRBs) and stellar populations in globular clusters. In its initial commit, it's a refactoring of the FORTRAN90 code used in [Power et al. (2009, MNRAS, 395, 1146)](https://ui.adsabs.harvard.edu/abs/2009MNRAS.395.1146P/abstract).
 
 ---
 
