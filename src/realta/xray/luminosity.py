@@ -32,22 +32,18 @@ class XRayLuminosity:
 
         if iseed is None or iseed >= 0:
             u = np.random.random()
-            log_lx = np.log10(self.lxmin) + (
-                np.log10(self.lxmax) - np.log10(self.lxmin)
-            ) * u
+            log_lx = (
+                np.log10(self.lxmin) + (np.log10(self.lxmax) - np.log10(self.lxmin)) * u
+            )
             lumx = 10.0**log_lx
         else:
             while True:
-                xmprob = self.lambda_ * ((self.k - 1.0) / self.k) ** (
-                    1.0 / self.k
-                )
+                xmprob = self.lambda_ * ((self.k - 1.0) / self.k) ** (1.0 / self.k)
                 u = np.random.random()
                 xprob = self.lambda_ * (-np.log(u)) ** (1.0 / self.k)
 
                 get_lumx = (
-                    (np.log10(self.lxmax) - np.log10(self.lxmin))
-                    * xprob
-                    / xmprob
+                    (np.log10(self.lxmax) - np.log10(self.lxmin)) * xprob / xmprob
                 )
                 get_lumx = np.log10(self.lxmin) + get_lumx
                 lumx = 10.0**get_lumx
