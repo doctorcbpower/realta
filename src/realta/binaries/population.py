@@ -20,6 +20,16 @@ class BinaryPopulation:
 
     def __init__(self, config: SimulationConfig):
         self.config = config
+        self.m1: np.ndarray = np.array([])
+        self.m2: np.ndarray = np.array([])
+        self.period: np.ndarray = np.array([])
+        self.a: np.ndarray = np.array([])
+        self.turnoff_time: np.ndarray = np.array([])
+        self.t2_lifetime: np.ndarray = np.array([])
+        self.nturn: np.ndarray = np.array([])
+        self.is_survived: np.ndarray = np.array([])
+        self.lum_xray: np.ndarray = np.array([])
+
         self.imf = get_imf(config.imf_type)
         self.np_rng = np.random.default_rng(config.iseed)
 
