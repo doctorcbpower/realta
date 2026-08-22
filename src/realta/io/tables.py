@@ -7,7 +7,6 @@ from typing import ClassVar
 
 import numpy as np
 
-
 logger = logging.getLogger("realta")
 
 
