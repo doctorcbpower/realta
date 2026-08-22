@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import math
 from pathlib import Path
+from typing import ClassVar
 
 from realta.binaries.population import BinaryPopulation
 from realta.config import SimulationConfig, load_config
@@ -13,7 +14,11 @@ logger = logging.getLogger("realta")
 class ClusterSimulation:
     """Main simulation orchestration engine."""
 
-    IMF_MAP = {1: "Salpeter", 2: "Kroupa", 3: "Chabrier"}
+    IMF_MAP: ClassVar[dict[int, str]] = {
+        1: "Salpeter",
+        2: "Kroupa",
+        3: "Chabrier",
+    }
 
     def __init__(self, config: SimulationConfig | None = None):
         self.config = config if config is not None else load_config()
