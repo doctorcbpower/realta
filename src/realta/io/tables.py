@@ -85,8 +85,8 @@ class LifetimeTable(DataTable):
             self._create_placeholder_data()
 
         lmass = np.log10(max(star_mass, 1e-10))
-        idx = np.searchsorted(self.mass, lmass, side="right") - 1
-        idx = max(0, min(idx, len(self.mass) - 2))
+        raw_idx = int(np.searchsorted(self.mass, lmass, side="right") - 1)
+        idx = max(0, min(raw_idx, len(self.mass) - 2))
 
         a = (self.lifetime[idx + 1] - self.lifetime[idx]) / (
             self.mass[idx + 1] - self.mass[idx]
@@ -159,8 +159,8 @@ class RemnantTable(DataTable):
             self._create_placeholder_data()
 
         lmass = np.log10(max(star_mass, 1e-10))
-        idx = np.searchsorted(self.minit, lmass, side="right") - 1
-        idx = max(0, min(idx, len(self.minit) - 2))
+        raw_idx = int(np.searchsorted(self.minit, lmass, side="right") - 1)
+        idx = max(0, min(raw_idx, len(self.minit) - 2))
 
         a = (self.mfin[idx + 1] - self.mfin[idx]) / (
             self.minit[idx + 1] - self.minit[idx]
@@ -248,8 +248,8 @@ class IonizingPhotonTable(DataTable):
             return -10.0
 
         lmass = np.log10(max(star_mass, 1e-10))
-        idx = np.searchsorted(self.mstar, lmass, side="right") - 1
-        idx = max(0, min(idx, len(self.mstar) - 2))
+        raw_idx = int(np.searchsorted(self.mstar, lmass, side="right") - 1)
+        idx = max(0, min(raw_idx, len(self.mstar) - 2))
 
         a = (self.ngamma[idx + 1] - self.ngamma[idx]) / (
             self.mstar[idx + 1] - self.mstar[idx]
