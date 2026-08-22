@@ -29,7 +29,7 @@
 Clone the repository and install the package locally:
 
 ```bash
-git clone [https://github.com/USERNAME/realta.git](https://github.com/USERNAME/realta.git)
+git clone [https://github.com/doctorcbpower/realta.git](https://github.com/doctorcbpower/realta.git)
 cd realta
 pip install .
 ```
