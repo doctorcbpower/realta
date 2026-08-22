@@ -1,0 +1,26 @@
+# Lifetimes (t_life ~ t_H + t_He) vs. Mass for solar metallicity (Z=0.02) taken
+# from tab. 1 of Meynet et Maeder (2000) for M>=9 Msun and Schaller et al (1992)
+# for M<9 Msun.
+# No rotation included
+# Mass (Msun)	    t_life (1e6 yrs)
+
+0.8                    25027
+0.9		       15500	
+1		       9961
+1.25		       4912	
+1.5		       2694
+1.7		       1827
+2		       1355
+2.5		       729
+3		       438
+4		       190
+5		       106
+7		       47
+9		       25.7
+12		       16.3
+15		       11.7
+20		       8.4
+25		       6.7
+40		       4.6
+60		       3.8
+120		       2.9
