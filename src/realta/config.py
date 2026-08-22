@@ -41,6 +41,20 @@ class SimulationConfig:
     # Data directory
     data_dir: str | None = None
 
+    def __post_init__(self):
+        if not 0.0 <= self.fbin <= 1.0:
+            raise ValueError(f"fbin must be in [0, 1], got {self.fbin}")
+        if self.dt <= 0:
+            raise ValueError(f"dt must be positive, got {self.dt}")
+        if self.pmin >= self.pmax:
+            raise ValueError(
+                f"pmin ({self.pmin}) must be strictly less than pmax ({self.pmax})"
+            )
+        if self.mmin >= self.mmax:
+            raise ValueError(
+                f"mmin ({self.mmin}) must be strictly less than mmax ({self.mmax})"
+            )
+
 
 def load_config(config_path: str | None = None) -> SimulationConfig:
     """Load configuration from YAML file or use defaults."""
