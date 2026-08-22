@@ -1,4 +1,5 @@
 import numpy as np
+
 from realta.imf.base import IMF
 
 

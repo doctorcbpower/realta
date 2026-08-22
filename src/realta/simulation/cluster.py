@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from realta.binaries.population import BinaryPopulation
 from realta.config import SimulationConfig, load_config
@@ -11,13 +12,13 @@ logger = logging.getLogger("realta")
 class ClusterSimulation:
     """Main simulation orchestration engine."""
 
-    def __init__(self, config: Optional[SimulationConfig] = None):
+    def __init__(self, config: SimulationConfig | None = None):
         if config is None:
             self.config = load_config()
         else:
             self.config = config
 
-        self.population: Optional[BinaryPopulation] = None
+        self.population: BinaryPopulation | None = None
 
     def initialize(self):
         logger.info("Initializing simulation...")
@@ -91,7 +92,7 @@ class ClusterSimulation:
 
         logger.info(f"Initial conditions written to {filename}")
 
-    def _write_results(self, results: List[Dict], output_dir: str):
+    def _write_results(self, results: list[dict], output_dir: str):
         imf_name = {1: "Salpeter", 2: "Kroupa", 3: "Chabrier"}
         filename = Path(output_dir) / f"{imf_name[self.config.imf_type]}.tevol.dat"
 
@@ -104,10 +105,10 @@ class ClusterSimulation:
             )
             f.write("# t/Myrs lx_tot/ergs nphot npop ndead\n")
 
-            for r in results:
-                f.write(
-                    f"{r['time']:18.8e} {r['lumx_tot']:18.8e} "
-                    f"{r['nphot_tot']:18.8e} {r['nactive']:9d} {r['ndead']:9d}\n"
-                )
+            f.writelines(
+                f"{r['time']:18.8e} {r['lumx_tot']:18.8e} "
+                f"{r['nphot_tot']:18.8e} {r['nactive']:9d} {r['ndead']:9d}\n"
+                for r in results
+            )
 
         logger.info(f"Results written to {filename}")

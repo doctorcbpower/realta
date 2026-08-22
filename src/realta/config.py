@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import os
-import yaml
 from dataclasses import dataclass
+
+import yaml
 
 
 @dataclass
@@ -35,10 +38,10 @@ class SimulationConfig:
     iseed: int = 12345
 
     # Data directory
-    data_dir: str = None
+    data_dir: str | None = None
 
 
-def load_config(config_path: str = None) -> SimulationConfig:
+def load_config(config_path: str | None = None) -> SimulationConfig:
     """Load configuration from YAML file or use defaults."""
     if config_path and os.path.exists(config_path):
         with open(config_path, "r") as f:

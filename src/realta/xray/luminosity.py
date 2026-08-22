@@ -1,4 +1,5 @@
-from typing import Optional
+from __future__ import annotations
+
 import numpy as np
 
 
@@ -22,7 +23,7 @@ class XRayLuminosity:
         masss: float,
         period: float,
         a: float,
-        iseed: Optional[int] = None,
+        iseed: int | None = None,
         use_weibull: bool = True,
     ) -> float:
         ledd = self.eddington_luminosity(massp)

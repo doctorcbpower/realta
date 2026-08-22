@@ -1,5 +1,6 @@
 import argparse
 import logging
+
 from realta.config import load_config
 from realta.simulation.cluster import ClusterSimulation
 
