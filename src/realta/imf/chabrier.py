@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.special import erf
+
 from realta.imf.base import IMF
 
 

@@ -12,7 +12,7 @@ logger = logging.getLogger("realta")
 class DataTable:
     """Base class for loading and interpolating tabulated data."""
 
-    def __init__(self, data_dir: str = None):
+    def __init__(self, data_dir: str | None = None):
         if data_dir is None:
             self.data_dir = importlib.resources.files("realta") / "data"
         else:
@@ -32,7 +32,7 @@ class LifetimeTable(DataTable):
         3: "lifetimes_z2e-2.dat",
     }
 
-    def __init__(self, imetal: int = 2, data_dir: str = None):
+    def __init__(self, imetal: int = 2, data_dir: str | None = None):
         super().__init__(data_dir)
         self.imetal = imetal
         self.mass = np.array([])
@@ -98,7 +98,7 @@ class LifetimeTable(DataTable):
 class RemnantTable(DataTable):
     """Remnant mass data table."""
 
-    def __init__(self, data_dir: str = None):
+    def __init__(self, data_dir: str | None = None):
         super().__init__(data_dir)
         self.minit = np.array([])
         self.mfin = np.array([])
@@ -175,7 +175,7 @@ class IonizingPhotonTable(DataTable):
     MUNIT = 1.99e30
     MATOM = 1.67e-27
 
-    def __init__(self, data_dir: str = None):
+    def __init__(self, data_dir: str | None = None):
         super().__init__(data_dir)
         self.mstar = np.array([])
         self.ngamma = np.array([])

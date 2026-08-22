@@ -1,8 +1,9 @@
 import logging
+
 from realta.imf.base import IMF
-from realta.imf.salpeter import SalpeterIMF
-from realta.imf.kroupa import KroupaIMF
 from realta.imf.chabrier import ChabrierIMF
+from realta.imf.kroupa import KroupaIMF
+from realta.imf.salpeter import SalpeterIMF
 
 logger = logging.getLogger("realta")
 
