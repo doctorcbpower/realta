@@ -32,21 +32,30 @@ Clone the repository and install the package locally:
 git clone [https://github.com/USERNAME/realta.git](https://github.com/USERNAME/realta.git)
 cd realta
 pip install .
+```
 
 ### 2. Developer Installation
 
 To install in editable mode with development dependencies (`pytest`, `ruff`, `mypy`):
 
-```pip install -e ".[dev]"
+```
+pip install -e ".[dev]"
+```
 
-### 3. Quickstart & Usage
+## Quickstart & Usage
 
-**Command Line Interface (CLI):** Once installed, you can trigger a simulation run directly using the realta executable:
+### 1. Command Line Interface (CLI)
 
-```# Run a cluster simulation with custom parameters
+Once installed, you can trigger a simulation run directly using the realta executable:
+
+```
+# Run a cluster simulation with custom parameters
 realta --ntot 1000 --tmax 10.0 --output-dir ./output
+```
 
-**Python API:** You can also use realta as a Python module in your analysis scripts:
+### 2. Python API 
+
+You can also use realta as a Python module in your analysis scripts:
 
 ```
 from realta import ClusterSimulation, SimulationConfig
@@ -64,7 +73,8 @@ results = cluster.run(output_dir="data/output")
 print(f"Simulation completed. Output saved to data/output")
 ```
 
-### 4. Project Architecture
+## Project Architecture
+```
 realta/
 ├── .github/workflows/    # CI/CD pipelines (Ruff & Pytest matrix)
 ├── src/
@@ -81,3 +91,4 @@ realta/
 │       └── random.py     # Reproducible NumPy random stream generator
 ├── tests/                # Unit and integration regression suites
 └── pyproject.toml        # Build configurations & dependencies
+```
