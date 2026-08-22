@@ -1,5 +1,4 @@
 import logging
-from typing import List, Tuple
 import numpy as np
 
 from realta.binaries.binary import Binary
@@ -20,7 +19,7 @@ class BinaryPopulation:
 
     def __init__(self, config: SimulationConfig):
         self.config = config
-        self.binaries: List[Binary] = []
+        self.binaries: list[Binary] = []
         self.rng = RandomGenerator(config.iseed)
         self.imf = get_imf(config.imf_type)
 
@@ -120,7 +119,7 @@ class BinaryPopulation:
         for i, b in enumerate(self.binaries):
             b.index = i
 
-    def evolve(self, tnow: float, dt: float) -> Tuple[float, float, int, int]:
+    def evolve(self, tnow: float, dt: float) -> tuple[float, float, int, int]:
         lumx_tot = 0.0
         nphot_tot = 0.0
         nactive = 0
@@ -171,17 +170,20 @@ class BinaryPopulation:
                     binary.a**3 / (binary.primary_mass + binary.secondary_mass)
                 )
 
-            if binary.turnoff_time > 0.0 and floss <= 0.5:
-                if binary.secondary_mass >= abs(self.config.mcomp):
-                    if self.rng.random() <= self.config.fbin:
-                        binary.lum_xray = self.xray_calc.get_lumx(
-                            binary.primary_mass,
-                            binary.secondary_mass,
-                            binary.period,
-                            binary.a,
-                            iseed=None,
-                            use_weibull=True,
-                        )
+            if (
+                binary.turnoff_time > 0.0
+                and floss <= 0.5
+                and binary.secondary_mass >= abs(self.config.mcomp)
+                and self.rng.random() <= self.config.fbin
+            ):
+                binary.lum_xray = self.xray_calc.get_lumx(
+                    binary.primary_mass,
+                    binary.secondary_mass,
+                    binary.period,
+                    binary.a,
+                    iseed=None,
+                    use_weibull=True,
+                )
 
             lumx_tot += binary.lum_xray
 
