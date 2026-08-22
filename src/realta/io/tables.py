@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import importlib.resources
 import logging
 from pathlib import Path
@@ -66,7 +68,7 @@ class LifetimeTable(DataTable):
             self.mass = np.log10(np.array(masses))
             self.lifetime = np.log10(np.array(lifetimes))
             self.loaded = True
-        except Exception as e:
+        except (FileNotFoundError, ValueError, IndexError) as e:
             logger.error(f"Error loading lifetime data: {e}")
             self._create_placeholder_data()
 
@@ -130,7 +132,7 @@ class RemnantTable(DataTable):
             self.minit = np.log10(np.array(minit))
             self.mfin = np.log10(np.clip(np.array(mfin), 1e-10, None))
             self.loaded = True
-        except Exception as e:
+        except (FileNotFoundError, ValueError, IndexError) as e:
             logger.error(f"Error loading remnant data: {e}")
             self._create_placeholder_data()
 
@@ -215,7 +217,7 @@ class IonizingPhotonTable(DataTable):
                 - np.log10(self.MATOM)
             )
             self.loaded = True
-        except Exception as e:
+        except (FileNotFoundError, ValueError, IndexError) as e:
             logger.error(f"Error loading ionizing photon data: {e}")
             self._create_placeholder_data()
 
