@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
+
 import numpy as np
+
 from realta.random import RandomGenerator
 
 
@@ -9,7 +11,6 @@ class IMF(ABC):
     @abstractmethod
     def cdf(self, m: float, mmin: float, mmax: float) -> float:
         """Cumulative distribution function P(<m)."""
-        pass
 
     def sample(
         self, n: int, mmin: float, mmax: float, rng: RandomGenerator
