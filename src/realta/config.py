@@ -1,7 +1,6 @@
 import os
 import yaml
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -36,10 +35,10 @@ class SimulationConfig:
     iseed: int = 12345
 
     # Data directory
-    data_dir: Optional[str] = None
+    data_dir: str = None
 
 
-def load_config(config_path: Optional[str] = None) -> SimulationConfig:
+def load_config(config_path: str = None) -> SimulationConfig:
     """Load configuration from YAML file or use defaults."""
     if config_path and os.path.exists(config_path):
         with open(config_path, "r") as f:

@@ -24,7 +24,7 @@ class ClusterSimulation:
         self.population = BinaryPopulation(self.config)
         logger.info("Simulation initialized.")
 
-    def run(self, output_dir: str = "output") -> List[Dict]:
+    def run(self, output_dir: str = "output") -> list[dict]:
         if self.population is None:
             self.initialize()
 
