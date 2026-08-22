@@ -33,6 +33,8 @@ class ClusterSimulation:
         if self.population is None:
             self.initialize()
 
+        assert self.population is not None
+
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         self._write_initial_conditions(output_path)
@@ -72,9 +74,22 @@ class ClusterSimulation:
         )
 
     def _write_initial_conditions(self, output_dir: Path):
+        if self.population is None:
+            raise RuntimeError(
+                "Population is not initialized. Call initialize() first."
+            )
+
+        pop = self.population
+        m1 = pop.m1
+        m2 = pop.m2
+        period = pop.period
+        a = pop.a
+        turnoff_time = pop.turnoff_time
+        t2_lifetime = pop.t2_lifetime
+        remnant_table = pop.remnant_table
+
         imf_name = self._get_imf_name()
         filename = output_dir / f"{imf_name}.init.dat"
-        pop = self.population
 
         with open(filename, "w") as f:
             f.write(f"# {imf_name} IMF\n")
@@ -88,20 +103,15 @@ class ClusterSimulation:
             )
             f.write("# n (m1,m2)/M* P/days a/AU (t1,t2)/Myrs (mr1,mr2)/M*\n")
 
-            # Iterate over vectorized array indices
-            for i in range(len(pop.m1)):
-                t1 = pop.turnoff_time[i]
-                t2 = pop.t2_lifetime[i]
-                mr1 = pop.remnant_table.get_remnant_mass(pop.m1[i])
-                mr2 = (
-                    pop.remnant_table.get_remnant_mass(pop.m2[i])
-                    if pop.m2[i] > 0
-                    else 0.0
-                )
+            for i in range(len(m1)):
+                t1 = turnoff_time[i]
+                t2 = t2_lifetime[i]
+                mr1 = remnant_table.get_remnant_mass(m1[i])
+                mr2 = remnant_table.get_remnant_mass(m2[i]) if m2[i] > 0 else 0.0
 
                 f.write(
-                    f"{i + 1:9d} {pop.m1[i]:12.4f} {pop.m2[i]:12.4f} "
-                    f"{pop.period[i]:12.4f} {pop.a[i]:12.4f} {t1:12.4f} {t2:12.4f} "
+                    f"{i + 1:9d} {m1[i]:12.4f} {m2[i]:12.4f} "
+                    f"{period[i]:12.4f} {a[i]:12.4f} {t1:12.4f} {t2:12.4f} "
                     f"{mr1:12.4f} {mr2:12.4f}\n"
                 )
 
