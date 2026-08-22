@@ -25,6 +25,7 @@ class SimulationConfig:
     pmax: float = 1000.0
     mcomp: float = 0.5
     fbin: float = 0.5
+    fsur: float = 0.1
 
     # Metallicity: 1=Z=0, 2=Z=0.008, 3=Z=0.02
     imetal: int = 2
