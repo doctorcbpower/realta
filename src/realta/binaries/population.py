@@ -46,9 +46,7 @@ class BinaryPopulation:
         mcomp = self.config.mcomp
         fbin = self.config.fbin
 
-        logger.info(
-            f"Generating {ntot} stars with IMF type {self.config.imf_type}"
-        )
+        logger.info(f"Generating {ntot} stars with IMF type {self.config.imf_type}")
 
         masses = self.imf.sample(ntot, mmin, mmax, self.rng)
 
@@ -168,9 +166,7 @@ class BinaryPopulation:
                 continue
 
             if floss <= 0.5:
-                binary.a *= deltam / (
-                    binary.primary_mass + binary.secondary_mass
-                )
+                binary.a *= deltam / (binary.primary_mass + binary.secondary_mass)
                 binary.period = self.PFAC * np.sqrt(
                     binary.a**3 / (binary.primary_mass + binary.secondary_mass)
                 )

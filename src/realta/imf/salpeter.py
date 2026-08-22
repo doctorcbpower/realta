@@ -1,8 +1,7 @@
-import numpy as np
 from realta.imf.base import IMF
 
-class SalpeterIMF(IMF):
 
+class SalpeterIMF(IMF):
     def __init__(self, alpha: float = 2.35):
         self.alpha = alpha
         self.beta = 1.0 - alpha

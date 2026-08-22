@@ -16,7 +16,5 @@ def get_imf(imf_type: int) -> IMF:
     elif imf_type == 3:
         return ChabrierIMF()
     else:
-        logger.warning(
-            f"Unknown IMF type {imf_type}, defaulting to SalpeterIMF"
-        )
+        logger.warning(f"Unknown IMF type {imf_type}, defaulting to SalpeterIMF")
         return SalpeterIMF()

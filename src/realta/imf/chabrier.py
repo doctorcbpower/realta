@@ -4,7 +4,6 @@ from realta.imf.base import IMF
 
 
 class ChabrierIMF(IMF):
-
     def __init__(
         self,
         mc: float = 3.5,
@@ -30,9 +29,7 @@ class ChabrierIMF(IMF):
         arg_erf2 = np.log10(mmin / self.mc) / (
             np.log10(10.0) * self.sigma * np.sqrt(2.0)
         )
-        arg_erf = np.log10(m / self.mc) / (
-            np.log10(10.0) * self.sigma * np.sqrt(2.0)
-        )
+        arg_erf = np.log10(m / self.mc) / (np.log10(10.0) * self.sigma * np.sqrt(2.0))
 
         term1 = (
             self.sigma

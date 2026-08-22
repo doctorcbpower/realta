@@ -39,9 +39,7 @@ class ClusterSimulation:
         logger.info(f"Starting time evolution to {tmax} Myr with dt={dt} Myr")
 
         while tnow <= tmax:
-            lumx_tot, nphot_tot, nactive, ndead = self.population.evolve(
-                tnow, dt
-            )
+            lumx_tot, nphot_tot, nactive, ndead = self.population.evolve(tnow, dt)
 
             results.append(
                 {
@@ -61,9 +59,7 @@ class ClusterSimulation:
 
     def _write_initial_conditions(self, output_dir: str):
         imf_name = {1: "Salpeter", 2: "Kroupa", 3: "Chabrier"}
-        filename = (
-            Path(output_dir) / f"{imf_name[self.config.imf_type]}.init.dat"
-        )
+        filename = Path(output_dir) / f"{imf_name[self.config.imf_type]}.init.dat"
 
         with open(filename, "w") as f:
             f.write(f"# {imf_name[self.config.imf_type]} IMF\n")
@@ -78,12 +74,8 @@ class ClusterSimulation:
             f.write("# n (m1,m2)/M* P/days a/AU (t1,t2)/Myrs (mr1,mr2)/M*\n")
 
             for i, binary in enumerate(self.population.binaries):
-                t1 = self.population.lifetime_table.get_lifetime(
-                    binary.primary_mass
-                )
-                t2 = self.population.lifetime_table.get_lifetime(
-                    binary.secondary_mass
-                )
+                t1 = self.population.lifetime_table.get_lifetime(binary.primary_mass)
+                t2 = self.population.lifetime_table.get_lifetime(binary.secondary_mass)
                 mr1 = self.population.remnant_table.get_remnant_mass(
                     binary.primary_mass
                 )
@@ -92,7 +84,7 @@ class ClusterSimulation:
                 )
 
                 f.write(
-                    f"{i+1} {binary.primary_mass:12.4f} {binary.secondary_mass:12.4f} "
+                    f"{i + 1} {binary.primary_mass:12.4f} {binary.secondary_mass:12.4f} "
                     f"{binary.period:12.4f} {binary.a:12.4f} {t1:12.4f} {t2:12.4f} "
                     f"{mr1:12.4f} {mr2:12.4f}\n"
                 )
@@ -101,9 +93,7 @@ class ClusterSimulation:
 
     def _write_results(self, results: List[Dict], output_dir: str):
         imf_name = {1: "Salpeter", 2: "Kroupa", 3: "Chabrier"}
-        filename = (
-            Path(output_dir) / f"{imf_name[self.config.imf_type]}.tevol.dat"
-        )
+        filename = Path(output_dir) / f"{imf_name[self.config.imf_type]}.tevol.dat"
 
         with open(filename, "w") as f:
             f.write(f"# {imf_name[self.config.imf_type]} IMF\n")

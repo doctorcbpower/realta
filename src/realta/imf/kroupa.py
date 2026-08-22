@@ -1,8 +1,8 @@
 import numpy as np
 from realta.imf.base import IMF
 
-class KroupaIMF(IMF):
 
+class KroupaIMF(IMF):
     def __init__(self):
         self.m0 = 0.01
         self.m1 = 0.08
