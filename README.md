@@ -92,3 +92,22 @@ realta/
 ├── tests/                # Unit and integration regression suites
 └── pyproject.toml        # Build configurations & dependencies
 ```
+
+## Development & Testing
+
+## 1. Running Tests
+Execute the unit and regression testing suite with pytest:
+```
+python3 -m pytest
+```
+## 2. Code Formatting & Linting
+`realta` uses Ruff for fast code linting and formatting:
+```
+# Check code quality
+ruff check .
+# Check formatting
+ruff format --check .
+```
+
+## License
+Distributed under the MIT License. See `LICENSE` for more information.
