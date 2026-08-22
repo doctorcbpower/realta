@@ -1,0 +1,26 @@
+! Lifetimes (t_life ~ t_H + t_He) vs. Mass for metallicity (Z=0.008) taken
+! from tab. 1 of Schaerer et al. (1993)
+! No rotation included
+
+! Mass (solar masses)	t_life (1e6 yrs)
+0.8                    20804.69
+0.9                    12841.53
+1.0                     8235.29
+1.25                    3307.68
+1.5                     2236.13
+1.7                     1538.79
+2.                      1182.84
+2.5                      657.11
+3.                       391.16
+4.                       180.04
+5.                       107.62
+7		   	  51
+10			  26
+12			  19.4
+15			  14
+20			  9.9
+25			  7.8
+40			  5.2
+60			  4.1
+85			  3.5
+120			  3.1

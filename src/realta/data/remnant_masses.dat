@@ -1,0 +1,17 @@
+# Taken from Figure 3 of Heger, Woosley, Fryer and Langer (astro-ph/0211062)
+# Assumes zero metallicity
+#
+# Log10 Minit    Log10 Mfin
+#
+0.09375           -0.25
+0.75837            0.0
+1.03125		   0.21875
+1.28125            0.21875
+1.40625            0.375
+1.72712            1.48
+2.00000            1.7896
+2.156251           2.0
+2.156251           -10
+2.453119           -10
+2.45312            2.28125
+3.0                2.76125

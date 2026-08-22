@@ -1,0 +1,27 @@
+simulation:
+  ntot: 100000
+  mmin: 0.01
+  mmax: 100.0
+  mcut: 8.0
+  tmax: 100.0
+  dt: 0.01
+
+imf:
+  type: 2  # 1=Salpeter, 2=Kroupa, 3=Chabrier
+
+binaries:
+  pmin: 0.1
+  pmax: 1000.0
+  mcomp: 0.5
+  fbin: 0.5
+
+metallicity:
+  imetal: 2  # 1=Z=0, 2=Z=0.008, 3=Z=0.02
+
+xray:
+  lxmin: 33.0
+  lxmax: 39.0
+  lunit: 1.0e33
+
+random:
+  iseed: -12345
