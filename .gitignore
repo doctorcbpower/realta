@@ -1,2 +1,3 @@
 __pycache__
 *.egg*
+tests/output_tmp/
