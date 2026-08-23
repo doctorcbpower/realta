@@ -102,11 +102,20 @@ pip install -e ".[dev]"
 
 ### 1. Command Line Interface (CLI)
 
-Once installed, a simulation can be run directly using the `realta` executable:
+Once installed, a simulation can be run directly using the `realta` executable.
+Simulation parameters are set via a YAML config file (see `config.yml` for the
+full field list, units, and Power et al. 2009 provenance of each value) --
+there are no per-parameter CLI flags:
 
 ```bash
-# Run a population simulation with custom parameters
-realta --ntot 1000 --tmax 10.0 --output-dir ./output
+# Run with a config file
+realta --config config.yml --output ./output
+
+# Or with defaults (see SimulationConfig in src/realta/config.py)
+realta --output ./output
+
+# -v/--verbose for debug-level logging
+realta --config config.yml --output ./output --verbose
 ```
 
 ### 2. Python API
