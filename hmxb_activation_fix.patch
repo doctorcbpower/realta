@@ -1,0 +1,325 @@
+diff --git a/src/realta/binaries/population.py b/src/realta/binaries/population.py
+index bc21df7..cb829ed 100644
+--- a/src/realta/binaries/population.py
++++ b/src/realta/binaries/population.py
+@@ -18,6 +18,14 @@ class BinaryPopulation:
+     PFAC = 365.229126
+     AFAC = 0.0193852859
+ 
++    # Converts total X-ray luminosity (in units of `lunit`) to an ionising
++    # photon rate: main.f, `lum_xray(i)*(6.2415e11/13.6)*alog(1500/13.6)
++    # /alog(1e6/13.6)`. 6.2415e11 is erg->eV; 13.6 eV is the hydrogen
++    # ionisation energy; the log ratio is a spectral-shape correction for
++    # photons distributed between 13.6 eV and 1500 eV, referenced against
++    # an upper bound of 1e6 eV. Reproduced as-is from the reference model.
++    NPHOT_PER_LUMX = (6.2415e11 / 13.6) * np.log(1500.0 / 13.6) / np.log(1.0e6 / 13.6)
++
+     def __init__(self, config: SimulationConfig):
+         self.config = config
+         self.m1: np.ndarray = np.array([])
+@@ -41,6 +49,7 @@ class BinaryPopulation:
+             lxmin=10.0 ** (config.lxmin - np.log10(config.lunit)),
+             lxmax=10.0 ** (config.lxmax - np.log10(config.lunit)),
+             lunit=config.lunit,
++            distribution=config.xray_distribution,
+         )
+ 
+         self.generate_population()
+@@ -57,12 +66,15 @@ class BinaryPopulation:
+         m1 = raw_masses[mask_massive]
+         n_massive = len(m1)
+ 
+-        # Vectorized binary fraction & period sampling
+-        is_binary = self.np_rng.random(n_massive) <= cfg.fbin
++        # Primordial binary fraction is 100% for stars above mcut in the
++        # Power et al. (2009) reference model (fpbin=1.0 in the reference
++        # make_stars.f) -- every massive star gets a companion and a
++        # period. `fbin` is NOT a formation-time filter: it is applied
++        # once, later, as the HMXB "activation" probability at primary
++        # supernova (see evolve()).
+         log_pmin, log_pmax = np.log(cfg.pmin), np.log(cfg.pmax)
+-        periods = (
+-            np.exp(log_pmin + (log_pmax - log_pmin) * self.np_rng.random(n_massive))
+-            * is_binary
++        periods = np.exp(
++            log_pmin + (log_pmax - log_pmin) * self.np_rng.random(n_massive)
+         )
+ 
+         # Vectorized companion mass assignment
+@@ -71,15 +83,11 @@ class BinaryPopulation:
+         else:
+             m2 = cfg.mcomp + (m1 - cfg.mcomp) * self.np_rng.random(n_massive)
+ 
+-        m2 = np.minimum(m2, m1) * is_binary
++        m2 = np.minimum(m2, m1)
+ 
+         # Vectorized Semi-Major Axis calculation
+         q = np.divide(m2, m1, out=np.zeros_like(m1), where=m1 > 0)
+-        a = np.where(
+-            is_binary,
+-            self.AFAC * (m1 ** (1 / 3)) * ((1.0 + q) ** (1 / 3)) * (periods ** (2 / 3)),
+-            0.0,
+-        )
++        a = self.AFAC * (m1 ** (1 / 3)) * ((1.0 + q) ** (1 / 3)) * (periods ** (2 / 3))
+ 
+         # Vectorized lifetimes
+         t_off1 = np.array([self.lifetime_table.get_lifetime(m) for m in m1])
+@@ -135,6 +143,27 @@ class BinaryPopulation:
+                         self.a[i] *= deltam / mtot
+                         self.period[i] = self.PFAC * np.sqrt((self.a[i] ** 3) / mtot)
+                     self.is_survived[i] = self.np_rng.random() <= fsur_val
++
++                    # HMXB "activation" gate (Power et al. 2009, main.f:
++                    # `ran3(iseed).le.fbin`): the probability that a
++                    # surviving, sufficiently massive binary is observed
++                    # as an active X-ray source. The X-ray luminosity is
++                    # drawn exactly once, here, and held fixed for the
++                    # rest of the binary's active HMXB lifetime -- it is
++                    # NOT redrawn every timestep (get_lumx.f is likewise
++                    # called only once per system, at primary SN).
++                    if (
++                        self.is_survived[i]
++                        and self.m2[i] > mcomp_abs
++                        and self.np_rng.random() <= self.config.fbin
++                    ):
++                        self.lum_xray[i] = self.xray_calc.get_lumx(
++                            self.m1[i],
++                            self.m2[i],
++                            self.period[i],
++                            self.a[i],
++                            rng=self.np_rng,
++                        )
+                 else:
+                     self.is_survived[i] = False
+ 
+@@ -148,40 +177,35 @@ class BinaryPopulation:
+                 self.turnoff_time[i] = 0.0
+                 self.nturn[i] = 2
+                 self.is_survived[i] = False
++                self.lum_xray[i] = 0.0
+ 
+-        # --- Phase 3: Evaluate Active HMXBs ---
+-        # Systems currently in HMXB phase (nturn == 1) that have NOT reached secondary turnoff
+-        active_hmxb_mask = (self.nturn == 1) & self.is_survived & (self.m2 >= mcomp_abs)
+-
+-        self.lum_xray.fill(0.0)
+-        if np.any(active_hmxb_mask):
+-            hmxb_idx = np.where(active_hmxb_mask)[0]
+-            for i in hmxb_idx:
+-                self.lum_xray[i] = self.xray_calc.get_lumx(
+-                    self.m1[i],
+-                    self.m2[i],
+-                    self.period[i],
+-                    self.a[i],
+-                    iseed=None,
+-                    use_weibull=True,
+-                )
+-
++        # --- Phase 3: Aggregate observables ---
++        # self.lum_xray already holds each active HMXB's persistent
++        # luminosity (drawn once, at activation, in Phase 1 above) --
++        # sum as-is rather than redrawing every timestep.
+         lumx_tot = float(np.sum(self.lum_xray))
+ 
+-        # --- Counts & Photon Totals ---
+-        nactive = int(np.count_nonzero(self.nturn == 1))
++        # --- Counts ---
++        # `nactive` in the reference model (main.f) is reset to zero every
++        # timestep and counts only the primary supernovae that occur
++        # *during this step* (nactive=nactive+1 inside the nturn==0
++        # branch, unconditional on survival/activation) -- it is a
++        # formation-rate column, not a running census of currently-active
++        # HMXBs. sn1_mask, computed above, is exactly that set of events.
++        nactive = int(np.count_nonzero(sn1_mask))
+         ndead = int(np.count_nonzero(self.nturn == 2))
+ 
+-        nphot_tot = 0.0
+-        ms_mask = self.nturn == 0
+-        if np.any(ms_mask):
+-            for i in np.where(ms_mask)[0]:
+-                ng1 = self.ionizing_table.get_ngamma(self.m1[i])
+-                ng2 = self.ionizing_table.get_ngamma(self.m2[i])
+-                t1, t2 = self.turnoff_time[i], self.t2_lifetime[i]
+-                if t1 > 0 and t2 > 0:
+-                    nphot_tot += 10.0 ** (
+-                        ng1 + np.log10(dt / t1) + ng2 + np.log10(dt / t2) - 60
+-                    )
++        # --- Ionising photon rate ---
++        # main.f computes nphot_tot twice: once from the stellar get_ngamma
++        # tables (main-sequence UV budget), then immediately overwrites it
++        # (before writing to file) with an empirical conversion of the
++        # *X-ray* luminosity itself into a photoionising rate, assuming a
++        # spectrum between 13.6 eV and 1500 eV referenced against an upper
++        # bound of 1e6 eV. Only this second formula reaches the reference
++        # output; the get_ngamma-based value is dead code there. This
++        # therefore reproduces the second formula, not the first -- the
++        # ionizing_table/get_ngamma machinery is retained but is no longer
++        # used to compute nphot_tot.
++        nphot_tot = lumx_tot * self.NPHOT_PER_LUMX
+ 
+         return lumx_tot, nphot_tot, nactive, ndead
+diff --git a/src/realta/config.py b/src/realta/config.py
+index 5c36976..e254fa6 100644
+--- a/src/realta/config.py
++++ b/src/realta/config.py
+@@ -24,8 +24,23 @@ class SimulationConfig:
+     pmin: float = 0.1
+     pmax: float = 1000.0
+     mcomp: float = 0.5
++
++    # Probability that a surviving primary-supernova binary is observed as
++    # an active HMXB (Power et al. 2009: get_lumx.f / main.f, gated by
++    # `ran3(iseed).le.fbin`). NOT a primordial binary fraction -- every
++    # massive star above `mcut` is assigned a companion at formation
++    # (fpbin=1.0 in the reference make_stars.f); fbin only gates whether a
++    # post-supernova binary is counted as X-ray active.
+     fbin: float = 0.5
+-    fsur: float = 0.1
++
++    # Reserved for a future natal-kick / disruption survival prescription
++    # (see brief Level 2, "improved natal kicks"). The Power et al. (2009)
++    # reference has no such term: binary survival after the primary
++    # supernova is governed purely by the deterministic sudden-mass-loss
++    # criterion (floss <= 0.5). Defaults to 1.0 (always survive, i.e. a
++    # no-op) so the baseline reproduces the reference model; set below 1.0
++    # only when deliberately exploring an improved kick-survival model.
++    fsur: float = 1.0
+ 
+     # Metallicity: 1=Z=0, 2=Z=0.008, 3=Z=0.02
+     imetal: int = 2
+@@ -35,6 +50,15 @@ class SimulationConfig:
+     lxmax: float = 39.0
+     lunit: float = 1.0e33
+ 
++    # Shape of the per-binary X-ray luminosity draw (xray/luminosity.py).
++    # "weibull": peaked distribution rejection-sampled below the Eddington
++    #   luminosity -- matches every real run of the Fortran reference
++    #   (get_lumx.f only takes its "uniform" branch when iseed is exactly
++    #   -1, a debug/test sentinel never used by main.f, which always sets
++    #   iseed = -abs(iseed)).
++    # "uniform": flat log-uniform draw between lxmin and lxmax.
++    xray_distribution: str = "weibull"
++
+     # Random seed
+     iseed: int = 12345
+ 
+@@ -44,6 +68,13 @@ class SimulationConfig:
+     def __post_init__(self):
+         if not 0.0 <= self.fbin <= 1.0:
+             raise ValueError(f"fbin must be in [0, 1], got {self.fbin}")
++        if not 0.0 <= self.fsur <= 1.0:
++            raise ValueError(f"fsur must be in [0, 1], got {self.fsur}")
++        if self.xray_distribution not in ("weibull", "uniform"):
++            raise ValueError(
++                "xray_distribution must be 'weibull' or 'uniform', "
++                f"got {self.xray_distribution!r}"
++            )
+         if self.dt <= 0:
+             raise ValueError(f"dt must be positive, got {self.dt}")
+         if self.pmin >= self.pmax:
+diff --git a/src/realta/xray/luminosity.py b/src/realta/xray/luminosity.py
+index e9a8602..12ae7b4 100644
+--- a/src/realta/xray/luminosity.py
++++ b/src/realta/xray/luminosity.py
+@@ -4,15 +4,37 @@ import numpy as np
+ 
+ 
+ class XRayLuminosity:
+-    """X-ray luminosity calculator for binaries."""
++    """X-ray luminosity calculator for binaries.
+ 
+-    def __init__(self, lxmin: float, lxmax: float, lunit: float = 1.0e33):
++    Reference: Power et al. (2009), MNRAS, 395, 1146 (get_lumx.f).
++
++    The Fortran reference selects between two draws based on the sign/value
++    of the random seed passed to it: a flat log-uniform draw when
++    ``iseed == -1`` (a debug/test sentinel), and a peaked (Weibull-shaped)
++    draw, rejection-sampled below the Eddington luminosity, for every other
++    seed value. Since the driver (main.f) always forces the working seed to
++    ``-abs(iseed)`` -- never exactly -1 for a real run -- every production
++    run of the reference model uses the peaked draw. Realta exposes this as
++    an explicit ``distribution`` choice rather than overloading the seed
++    value, defaulting to "weibull" to match real Power et al. (2009) runs.
++    """
++
++    def __init__(
++        self,
++        lxmin: float,
++        lxmax: float,
++        lunit: float = 1.0e33,
++        distribution: str = "weibull",
++    ):
+         self.lxmin = lxmin
+         self.lxmax = lxmax
+         self.lunit = lunit
+         self.eta = 0.1
+         self.lambda_ = 0.5
+         self.k = 1.9
++        if distribution not in ("weibull", "uniform"):
++            raise ValueError(f"Unknown X-ray luminosity distribution: {distribution!r}")
++        self.distribution = distribution
+ 
+     def eddington_luminosity(self, mass: float) -> float:
+         return 10.0 ** (np.log10(1.3) + 38 - np.log10(self.lunit)) * mass
+@@ -23,33 +45,41 @@ class XRayLuminosity:
+         masss: float,
+         period: float,
+         a: float,
+-        iseed: int | None = None,
+-        use_weibull: bool = True,
++        rng: np.random.Generator,
+     ) -> float:
++        """Draw one X-ray luminosity sample for an active HMXB.
++
++        `masss`, `period`, and `a` are accepted for interface parity with
++        the reference implementation but, like get_lumx.f, are not used in
++        the calculation -- only the primary (compact-object) mass sets the
++        Eddington limit that bounds the draw.
++
++        `rng` must be the same seeded `numpy.random.Generator` used for the
++        rest of the population, so that a run is fully reproducible from
++        `SimulationConfig.iseed`.
++        """
+         ledd = self.eddington_luminosity(massp)
+ 
+         if self.lxmin == self.lxmax:
+             return self.lxmin
+ 
+-        if iseed is None or iseed >= 0:
+-            u = np.random.random()
++        if self.distribution == "uniform":
++            u = rng.random()
+             log_lx = (
+                 np.log10(self.lxmin) + (np.log10(self.lxmax) - np.log10(self.lxmin)) * u
+             )
++            return 10.0**log_lx
++
++        # Weibull-shaped ("peaked") draw, rejection-sampled below the
++        # Eddington limit -- matches the reference implementation's
++        # behaviour for every real (non-sentinel) seed.
++        xmprob = self.lambda_ * ((self.k - 1.0) / self.k) ** (1.0 / self.k)
++        while True:
++            u = rng.random()
++            xprob = self.lambda_ * (-np.log(u)) ** (1.0 / self.k)
++            log_lx = np.log10(self.lxmin) + (
++                (np.log10(self.lxmax) - np.log10(self.lxmin)) * xprob / xmprob
++            )
+             lumx = 10.0**log_lx
+-        else:
+-            while True:
+-                xmprob = self.lambda_ * ((self.k - 1.0) / self.k) ** (1.0 / self.k)
+-                u = np.random.random()
+-                xprob = self.lambda_ * (-np.log(u)) ** (1.0 / self.k)
+-
+-                get_lumx = (
+-                    (np.log10(self.lxmax) - np.log10(self.lxmin)) * xprob / xmprob
+-                )
+-                get_lumx = np.log10(self.lxmin) + get_lumx
+-                lumx = 10.0**get_lumx
+-
+-                if lumx <= ledd:
+-                    break
+-
+-        return lumx
++            if lumx <= ledd:
++                return lumx
