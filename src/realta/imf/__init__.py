@@ -4,4 +4,4 @@ from realta.imf.factory import get_imf
 from realta.imf.kroupa import KroupaIMF
 from realta.imf.salpeter import SalpeterIMF
 
-__all__ = ["IMF", "SalpeterIMF", "KroupaIMF", "ChabrierIMF", "get_imf"]
+__all__ = ["IMF", "ChabrierIMF", "KroupaIMF", "SalpeterIMF", "get_imf"]

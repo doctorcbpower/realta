@@ -27,9 +27,8 @@ zcontinuous=1 interpolates continuously in log(Z), so it is not a proxy
 
 from __future__ import annotations
 
-import numpy as np
-
 import fsps
+import numpy as np
 
 MSUN_LBOL_ERG_S = 3.828e33  # IAU nominal solar luminosity, erg/s
 CLUSTER_MASS_MSUN = 1.0e6  # Power et al. (2009) fiducial cluster mass
