@@ -4,7 +4,7 @@
 # for the full field list, units, and provenance of each value.
 
 ntot: 100000
-mmin: 0.01
+mmin: 0.1 # practical stellar lower-mass cutoff, Msun (see config.py)
 mmax: 100.0
 mcut: 8.0
 tmax: 100.0

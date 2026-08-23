@@ -6,17 +6,13 @@ import numpy as np
 class XRayLuminosity:
     """X-ray luminosity calculator for binaries.
 
-    Reference: Power et al. (2009), MNRAS, 395, 1146 (get_lumx.f).
+    Reference: Power et al. (2009), MNRAS, 395, 1146, Sec. 2.2.
 
-    The Fortran reference selects between two draws based on the sign/value
-    of the random seed passed to it: a flat log-uniform draw when
-    ``iseed == -1`` (a debug/test sentinel), and a peaked (Weibull-shaped)
-    draw, rejection-sampled below the Eddington luminosity, for every other
-    seed value. Since the driver (main.f) always forces the working seed to
-    ``-abs(iseed)`` -- never exactly -1 for a real run -- every production
-    run of the reference model uses the peaked draw. Realta exposes this as
-    an explicit ``distribution`` choice rather than overloading the seed
-    value, defaulting to "weibull" to match real Power et al. (2009) runs.
+    Two draw shapes are supported: a flat log-uniform draw ("uniform"),
+    and a peaked (Weibull-shaped) draw, rejection-sampled below the
+    Eddington luminosity ("weibull") -- the latter is Realta's default,
+    matching the peaked, Eddington-limited HMXB luminosity distribution
+    described in the paper.
     """
 
     def __init__(
@@ -49,10 +45,10 @@ class XRayLuminosity:
     ) -> float:
         """Draw one X-ray luminosity sample for an active HMXB.
 
-        `masss`, `period`, and `a` are accepted for interface parity with
-        the reference implementation but, like get_lumx.f, are not used in
-        the calculation -- only the primary (compact-object) mass sets the
-        Eddington limit that bounds the draw.
+        `masss`, `period`, and `a` are accepted for interface consistency
+        but are not used in the calculation -- only the primary
+        (compact-object) mass sets the Eddington limit that bounds the
+        draw.
 
         `rng` must be the same seeded `numpy.random.Generator` used for the
         rest of the population, so that a run is fully reproducible from
@@ -71,8 +67,7 @@ class XRayLuminosity:
             return 10.0**log_lx
 
         # Weibull-shaped ("peaked") draw, rejection-sampled below the
-        # Eddington limit -- matches the reference implementation's
-        # behaviour for every real (non-sentinel) seed.
+        # Eddington limit.
         xmprob = self.lambda_ * ((self.k - 1.0) / self.k) ** (1.0 / self.k)
         while True:
             u = rng.random()
