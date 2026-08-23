@@ -188,19 +188,18 @@ class MSLuminosityTable(DataTable):
     against a simulation run with a different `ntot`/`mmin`/`mmax` (and
     therefore a different total formed mass) silently mixes two
     inconsistent normalizations -- e.g. Realta's own ntot=100_000,
-    mmin=0.01-100 Msun default population forms only ~7.8e4 Msun, not
-    1e6, so the un-rescaled MS curve would be ~13x too bright relative
+    mmin=0.1-100 Msun default population forms only ~8.9e4 Msun, not
+    1e6, so the un-rescaled MS curve would be ~11x too bright relative
     to that population's actual HMXB/accretion luminosity.
 
-    This is a genuinely different quantity from the reference Fortran's
-    (dead-code, never-output) get_ngamma-based MS estimate in
-    IonizingPhotonTable/get_ngamma -- it is the FULL population's total
-    bolometric luminosity (all masses, all evolutionary phases in FSPS'
-    isochrones), not just the ionising photon budget of M >= 8 Msun
-    stars. It is not part of the HMXB evolution loop and is not consumed
-    by BinaryPopulation.evolve() -- it exists for reproducing Fig. 1 of
-    Power et al. (2009) (the "Luminosity - MS lifetime" curve) and
-    similar population-luminosity comparisons.
+    This is a genuinely different quantity from `IonizingPhotonTable`
+    (a separate, currently-unused ionising-photon-budget estimate for
+    M >= 8 Msun stars only) -- this table is the FULL population's
+    total bolometric luminosity (all masses, all evolutionary phases in
+    FSPS' isochrones). It is not part of the HMXB evolution loop and is
+    not consumed by BinaryPopulation.evolve() -- it exists for
+    reproducing Fig. 1 of Power et al. (2009) (the "Luminosity - MS
+    lifetime" curve) and similar population-luminosity comparisons.
 
     Domain of validity: tabulated for 0.1-100 Myr only; get_lbol()
     returns 0.0 outside that range rather than extrapolating (a

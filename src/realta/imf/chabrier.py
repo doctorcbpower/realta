@@ -9,12 +9,10 @@ class ChabrierIMF(IMF):
 
     Log-normal below the transition mass m_tr, power-law dN/dm ~ m^-x
     above it. Default parameters (mc=3.5, m_tr=4.0, sigma=0.2, x=1.7)
-    are Chabrier (2003) Table 2's "primordial IMF" row and match the
-    reference Fortran's log_normal_IMF.f exactly (`parameter(Mc=3.5)`,
-    `parameter(M_tr=4.0)`, `parameter(sigma=0.2)`, `parameter(x=1.7)`;
-    that file also has Table 2's GC-population row, mc=0.33/m_tr=0.9/
-    sigma=0.34, commented out and unused). config.imf_type=3 selects
-    this IMF (see realta.imf.factory.get_imf).
+    are Chabrier (2003) Table 2's "primordial IMF" row (Table 2 also
+    has a GC-population row, mc=0.33/m_tr=0.9/sigma=0.34, not used
+    here). config.imf_type=3 selects this IMF (see
+    realta.imf.factory.get_imf).
     """
 
     def __init__(

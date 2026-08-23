@@ -11,13 +11,11 @@ logger = logging.getLogger("realta")
 def get_imf(imf_type: int) -> IMF:
     """Construct the IMF selected by config.imf_type.
 
-    1=Salpeter, 2=Kroupa (default), 3=Chabrier -- matches the reference
-    Fortran's `type` argument to make_stars() exactly (see each IMF
-    class's own docstring for its specific Power et al. 2009 /
-    reference-Fortran provenance). Falls back to SalpeterIMF with a
-    logged warning for any other value, rather than raising -- this is
-    a permissive default, not itself a documented Power et al. (2009)
-    behaviour.
+    1=Salpeter, 2=Kroupa (default), 3=Chabrier (see each IMF class's own
+    docstring for its specific provenance). Falls back to SalpeterIMF
+    with a logged warning for any other value, rather than raising --
+    this is a permissive default, not itself a documented Power et al.
+    (2009) behaviour.
     """
     if imf_type == 1:
         return SalpeterIMF()
