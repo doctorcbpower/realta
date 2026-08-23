@@ -1,4 +1,4 @@
-# `realta`
+# realta
 
 ![Realta banner](./realta_banner.jpg)
 
