@@ -46,17 +46,17 @@ from realta import ClusterSimulation, SimulationConfig
 # analytically.
 REGRESSION_CASES = {
     "fsur=1.0": {
-        "config": dict(
-            ntot=20_000,
-            imf_type=2,  # Kroupa
-            tmax=50.0,
-            dt=1.0,
-            fsur=1.0,
-            lxmin=33.0,
-            lxmax=38.0,
-            xray_distribution="weibull",
-            iseed=42,
-        ),
+        "config": {
+            "ntot": 20_000,
+            "imf_type": 2,  # Kroupa
+            "tmax": 50.0,
+            "dt": 1.0,
+            "fsur": 1.0,
+            "lxmin": 33.0,
+            "lxmax": 38.0,
+            "xray_distribution": "weibull",
+            "iseed": 42,
+        },
         "total_mass_msun": 17891.377637950565,
         "n_massive": 251,
         "trajectory": [
@@ -76,17 +76,17 @@ REGRESSION_CASES = {
         # binaries actually get activated as HMXBs changes) -- confirms
         # the activation gate itself is what fsur is changing here, not
         # something upstream.
-        "config": dict(
-            ntot=20_000,
-            imf_type=2,
-            tmax=50.0,
-            dt=1.0,
-            fsur=0.5,
-            lxmin=33.0,
-            lxmax=38.0,
-            xray_distribution="weibull",
-            iseed=42,
-        ),
+        "config": {
+            "ntot": 20_000,
+            "imf_type": 2,
+            "tmax": 50.0,
+            "dt": 1.0,
+            "fsur": 0.5,
+            "lxmin": 33.0,
+            "lxmax": 38.0,
+            "xray_distribution": "weibull",
+            "iseed": 42,
+        },
         "total_mass_msun": 17891.377637950565,
         "n_massive": 251,
         "trajectory": [
@@ -128,7 +128,7 @@ def test_run_is_deterministic_for_fixed_seed():
     Uses a small ntot for speed since only reproducibility, not physics
     coverage, is being tested here.
     """
-    config_kwargs = dict(ntot=500, tmax=5.0, dt=1.0, fsur=1.0, iseed=7)
+    config_kwargs = {"ntot": 500, "tmax": 5.0, "dt": 1.0, "fsur": 1.0, "iseed": 7}
 
     def run():
         sim = ClusterSimulation(SimulationConfig(**config_kwargs))
