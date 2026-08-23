@@ -5,6 +5,18 @@ from realta.imf.base import IMF
 
 
 class ChabrierIMF(IMF):
+    """Log-normal + power-law IMF (Chabrier 2003, PASP 115, 763, Table 2).
+
+    Log-normal below the transition mass m_tr, power-law dN/dm ~ m^-x
+    above it. Default parameters (mc=3.5, m_tr=4.0, sigma=0.2, x=1.7)
+    are Chabrier (2003) Table 2's "primordial IMF" row and match the
+    reference Fortran's log_normal_IMF.f exactly (`parameter(Mc=3.5)`,
+    `parameter(M_tr=4.0)`, `parameter(sigma=0.2)`, `parameter(x=1.7)`;
+    that file also has Table 2's GC-population row, mc=0.33/m_tr=0.9/
+    sigma=0.34, commented out and unused). config.imf_type=3 selects
+    this IMF (see realta.imf.factory.get_imf).
+    """
+
     def __init__(
         self,
         mc: float = 3.5,
@@ -19,6 +31,7 @@ class ChabrierIMF(IMF):
         self.pi = np.pi
 
     def cdf(self, m: float, mmin: float, mmax: float) -> float:
+        """P(<m) for the log-normal+power-law form, normalized on [mmin, mmax]."""
         if m <= mmin:
             return 0.0
         if m >= mmax:
