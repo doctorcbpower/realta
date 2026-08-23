@@ -69,8 +69,8 @@ class BinaryPopulation:
         # Primordial binary fraction is 100% for stars above mcut in the
         # Power et al. (2009) reference model (fpbin=1.0 in the reference
         # make_stars.f) -- every massive star gets a companion and a
-        # period. `fbin` is NOT a formation-time filter: it is applied
-        # once, later, as the HMXB "activation" probability at primary
+        # period. `fsur` is NOT a formation-time filter: it is applied
+        # once, later, as the HMXB activation probability at primary
         # supernova (see evolve()).
         log_pmin, log_pmax = np.log(cfg.pmin), np.log(cfg.pmax)
         periods = np.exp(
@@ -113,7 +113,18 @@ class BinaryPopulation:
         logger.info(f"Initialized {n_massive} massive binaries in vectorized memory.")
 
     def evolve(self, tnow: float, dt: float) -> tuple[float, float, int, int]:
-        fsur_val = getattr(self.config, "fsur", getattr(self.config, "f_sur", 1.0))
+        """Advance the population by one timestep.
+
+        Returns (lumx_tot, nphot_tot, nactive, ndead):
+            lumx_tot: summed active-HMXB X-ray luminosity, in erg/s.
+            nphot_tot: effective ionising photon rate from HMXBs, in s^-1
+                (see the Phase 3 comment below for its provenance).
+            nactive: number of primary supernovae during *this* timestep
+                (a formation-rate count, not a running census -- see the
+                Phase 3 comment below).
+            ndead: cumulative number of binaries with both stars now
+                compact remnants.
+        """
         mcomp_abs = abs(self.config.mcomp)
 
         # --- Phase 1: Primary Supernova Transitions ---
@@ -138,24 +149,28 @@ class BinaryPopulation:
                 self.nturn[i] = 1
 
                 if floss <= 0.5:
+                    # Deterministic sudden-mass-loss survival criterion
+                    # (Power et al. 2009, Sec. 2.1) -- no additional
+                    # stochastic term in the reference model.
                     mtot = self.m1[i] + self.m2[i]
                     if mtot > 0:
                         self.a[i] *= deltam / mtot
                         self.period[i] = self.PFAC * np.sqrt((self.a[i] ** 3) / mtot)
-                    self.is_survived[i] = self.np_rng.random() <= fsur_val
+                    self.is_survived[i] = True
 
-                    # HMXB "activation" gate (Power et al. 2009, main.f:
-                    # `ran3(iseed).le.fbin`): the probability that a
+                    # HMXB activation gate: f_sur, the probability that a
                     # surviving, sufficiently massive binary is observed
-                    # as an active X-ray source. The X-ray luminosity is
-                    # drawn exactly once, here, and held fixed for the
+                    # as an active HMXB (Power et al. 2009, Sec. 2.1;
+                    # main.f: `ran3(iseed).le.fbin`, which the reference
+                    # code names `fbin` despite it being the paper's
+                    # f_sur, not a binary fraction). The X-ray luminosity
+                    # is drawn exactly once, here, and held fixed for the
                     # rest of the binary's active HMXB lifetime -- it is
                     # NOT redrawn every timestep (get_lumx.f is likewise
                     # called only once per system, at primary SN).
                     if (
-                        self.is_survived[i]
-                        and self.m2[i] > mcomp_abs
-                        and self.np_rng.random() <= self.config.fbin
+                        self.m2[i] > mcomp_abs
+                        and self.np_rng.random() <= self.config.fsur
                     ):
                         self.lum_xray[i] = self.xray_calc.get_lumx(
                             self.m1[i],
@@ -183,7 +198,16 @@ class BinaryPopulation:
         # self.lum_xray already holds each active HMXB's persistent
         # luminosity (drawn once, at activation, in Phase 1 above) --
         # sum as-is rather than redrawing every timestep.
-        lumx_tot = float(np.sum(self.lum_xray))
+        #
+        # self.lum_xray is stored internally normalized by `lunit`
+        # (matching xray_calc's internal lxmin/lxmax and Eddington-limit
+        # bookkeeping, and the reference get_lumx.f's own convention).
+        # The reference Fortran writes this normalized sum straight to
+        # file under a misleading "lx_tot/ergs" header -- main.f never
+        # multiplies back by lunit either. That is a units bug, not
+        # something to reproduce: evolve()'s returned lumx_tot is scaled
+        # back to actual erg/s here so it means what its name says.
+        lumx_tot = float(np.sum(self.lum_xray)) * self.config.lunit
 
         # --- Counts ---
         # `nactive` in the reference model (main.f) is reset to zero every
