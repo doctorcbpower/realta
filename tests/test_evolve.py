@@ -52,7 +52,7 @@ def test_evolve_phase1_survival_criterion():
     pop.is_survived = np.ones(2, dtype=bool)
     pop.lum_xray = np.zeros(2)
 
-    lumx_tot, nphot_tot, nactive, ndead = pop.evolve(tnow=5.0, dt=1.0)
+    lumx_tot, _nphot_tot, nactive, ndead = pop.evolve(tnow=5.0, dt=1.0)
 
     # Both undergo the primary SN and are relabelled to the remnant mass,
     # regardless of survival outcome.
@@ -103,7 +103,7 @@ def test_evolve_phase2_death():
     pop.is_survived = np.array([True])
     pop.lum_xray = np.array([1.0e5])
 
-    lumx_tot, nphot_tot, nactive, ndead = pop.evolve(tnow=6.0, dt=1.0)
+    lumx_tot, _nphot_tot, nactive, ndead = pop.evolve(tnow=6.0, dt=1.0)
 
     assert pop.m2[0] == 1.2
     assert pop.turnoff_time[0] == 0.0
