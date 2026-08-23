@@ -6,7 +6,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**realta** is a modular stellar and binary population-synthesis framework. It provides a transparent and reproducible way to construct stellar populations from specified formation histories, assign and evolve binary systems under explicit physical prescriptions, and follow the resulting stellar remnants and observables.
+**realta** (Irish, 'star') is a modular stellar and binary population-synthesis framework. It provides a transparent and reproducible way to construct stellar populations from specified formation histories, assign and evolve binary systems under explicit physical prescriptions, and follow the resulting stellar remnants and observables.
 
 The current implementation is based on the coeval stellar-population model developed for high-mass X-ray binary (HMXB) studies in globular clusters, following Power et al. (2009). This provides a well-defined and reproducible baseline from which the code can be developed toward more general stellar and binary populations.
 
