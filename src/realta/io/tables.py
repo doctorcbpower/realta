@@ -175,9 +175,22 @@ class MSLuminosityTable(DataTable):
 
     Source: FSPS (Conroy, Gunn & White 2009; python-fsps wrapper by
     Foreman-Mackey et al., MIT licensed), Kroupa IMF, instantaneous-burst
-    single stellar population, scaled to a 1e6 Msun cluster (matching
-    Power et al. 2009's fiducial model). Generation script:
+    single stellar population. Generation script:
     notebooks_helper/generate_ms_luminosity_table.py.
+
+    The tabulated values are baked to a fixed fiducial cluster mass of
+    FIDUCIAL_CLUSTER_MASS_MSUN (1e6 Msun, matching Power et al. 2009's
+    nominal model -- see each ms_lbol_*.dat file's header). get_lbol()
+    takes the *actual* total mass formed in the population being
+    simulated and rescales linearly: SSP bolometric luminosity scales
+    linearly with total mass formed at fixed IMF, metallicity and age.
+    Without this rescaling, comparing this table's output directly
+    against a simulation run with a different `ntot`/`mmin`/`mmax` (and
+    therefore a different total formed mass) silently mixes two
+    inconsistent normalizations -- e.g. Realta's own ntot=100_000,
+    mmin=0.01-100 Msun default population forms only ~7.8e4 Msun, not
+    1e6, so the un-rescaled MS curve would be ~13x too bright relative
+    to that population's actual HMXB/accretion luminosity.
 
     This is a genuinely different quantity from the reference Fortran's
     (dead-code, never-output) get_ngamma-based MS estimate in
@@ -204,6 +217,11 @@ class MSLuminosityTable(DataTable):
         2: "ms_lbol_z8e-3.dat",
         3: "ms_lbol_z2e-2.dat",
     }
+
+    # Cluster mass baked into the tabulated FSPS values (see class
+    # docstring and notebooks_helper/generate_ms_luminosity_table.py's
+    # CLUSTER_MASS_MSUN). Must match the generation script exactly.
+    FIDUCIAL_CLUSTER_MASS_MSUN = 1.0e6
 
     def __init__(self, imetal: int = 2, data_dir: str | None = None):
         super().__init__(data_dir)
@@ -244,8 +262,15 @@ class MSLuminosityTable(DataTable):
         except (FileNotFoundError, ValueError, IndexError) as e:
             logger.error(f"Error loading MS luminosity data: {e}")
 
-    def get_lbol(self, age_myr: float) -> float:
+    def get_lbol(self, age_myr: float, total_mass_msun: float) -> float:
         """Total population bolometric luminosity at a given age, erg/s.
+
+        total_mass_msun: total stellar mass actually formed in the
+        population being simulated -- the sum of ALL sampled IMF masses
+        (e.g. BinaryPopulation.total_mass_msun), not just the M >= mcut
+        subset. Required to rescale the table's fiducial-1e6-Msun values
+        to the population actually being compared against -- see the
+        class docstring for why this matters.
 
         Returns 0.0 for ages outside the tabulated range (including
         age_myr <= 0) or if the table failed to load, rather than
@@ -266,7 +291,8 @@ class MSLuminosityTable(DataTable):
         )
         b = self.log_lbol[idx] - a * self.log_age[idx]
         log_lbol = a * lage + b
-        return 10.0**log_lbol
+        fiducial_lbol = 10.0**log_lbol
+        return fiducial_lbol * (total_mass_msun / self.FIDUCIAL_CLUSTER_MASS_MSUN)
 
 
 class IonizingPhotonTable(DataTable):

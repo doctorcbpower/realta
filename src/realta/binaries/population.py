@@ -37,6 +37,12 @@ class BinaryPopulation:
         self.nturn: np.ndarray = np.array([])
         self.is_survived: np.ndarray = np.array([])
         self.lum_xray: np.ndarray = np.array([])
+        # Total mass formed across the WHOLE sampled IMF (mmin-mmax),
+        # not just the M >= mcut binary progenitors -- set in
+        # generate_population(). Needed to correctly normalize
+        # population-luminosity comparisons such as MSLuminosityTable
+        # against this specific run's ntot/mmin/mmax choice.
+        self.total_mass_msun: float = 0.0
 
         self.imf = get_imf(config.imf_type)
         self.np_rng = np.random.default_rng(config.iseed)
@@ -60,6 +66,7 @@ class BinaryPopulation:
 
         # Vectorized IMF mass generation
         raw_masses = self.imf.sample(cfg.ntot, cfg.mmin, cfg.mmax, self.np_rng)
+        self.total_mass_msun = float(raw_masses.sum())
 
         # Filter primary mass cutoff upfront
         mask_massive = raw_masses >= cfg.mcut
