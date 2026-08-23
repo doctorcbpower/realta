@@ -1,3 +1,11 @@
 __pycache__
 *.egg*
 tests/output_tmp/
+
+# Generated simulation output (written fresh by ClusterSimulation.run()
+# and the paper-reproduction notebooks each time they're run) -- not
+# source, shouldn't be tracked.
+output/
+notebooks/paper_output/
+dist/
+build/

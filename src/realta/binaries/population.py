@@ -18,6 +18,14 @@ class BinaryPopulation:
     PFAC = 365.229126
     AFAC = 0.0193852859
 
+    # Converts total X-ray luminosity (in units of `lunit`) to an ionising
+    # photon rate: main.f, `lum_xray(i)*(6.2415e11/13.6)*alog(1500/13.6)
+    # /alog(1e6/13.6)`. 6.2415e11 is erg->eV; 13.6 eV is the hydrogen
+    # ionisation energy; the log ratio is a spectral-shape correction for
+    # photons distributed between 13.6 eV and 1500 eV, referenced against
+    # an upper bound of 1e6 eV. Reproduced as-is from the reference model.
+    NPHOT_PER_LUMX = (6.2415e11 / 13.6) * np.log(1500.0 / 13.6) / np.log(1.0e6 / 13.6)
+
     def __init__(self, config: SimulationConfig):
         self.config = config
         self.m1: np.ndarray = np.array([])
@@ -29,6 +37,12 @@ class BinaryPopulation:
         self.nturn: np.ndarray = np.array([])
         self.is_survived: np.ndarray = np.array([])
         self.lum_xray: np.ndarray = np.array([])
+        # Total mass formed across the WHOLE sampled IMF (mmin-mmax),
+        # not just the M >= mcut binary progenitors -- set in
+        # generate_population(). Needed to correctly normalize
+        # population-luminosity comparisons such as MSLuminosityTable
+        # against this specific run's ntot/mmin/mmax choice.
+        self.total_mass_msun: float = 0.0
 
         self.imf = get_imf(config.imf_type)
         self.np_rng = np.random.default_rng(config.iseed)
@@ -41,6 +55,7 @@ class BinaryPopulation:
             lxmin=10.0 ** (config.lxmin - np.log10(config.lunit)),
             lxmax=10.0 ** (config.lxmax - np.log10(config.lunit)),
             lunit=config.lunit,
+            distribution=config.xray_distribution,
         )
 
         self.generate_population()
@@ -51,18 +66,22 @@ class BinaryPopulation:
 
         # Vectorized IMF mass generation
         raw_masses = self.imf.sample(cfg.ntot, cfg.mmin, cfg.mmax, self.np_rng)
+        self.total_mass_msun = float(raw_masses.sum())
 
         # Filter primary mass cutoff upfront
         mask_massive = raw_masses >= cfg.mcut
         m1 = raw_masses[mask_massive]
         n_massive = len(m1)
 
-        # Vectorized binary fraction & period sampling
-        is_binary = self.np_rng.random(n_massive) <= cfg.fbin
+        # Primordial binary fraction is 100% for stars above mcut in the
+        # Power et al. (2009) reference model (fpbin=1.0 in the reference
+        # make_stars.f) -- every massive star gets a companion and a
+        # period. `fsur` is NOT a formation-time filter: it is applied
+        # once, later, as the HMXB activation probability at primary
+        # supernova (see evolve()).
         log_pmin, log_pmax = np.log(cfg.pmin), np.log(cfg.pmax)
-        periods = (
-            np.exp(log_pmin + (log_pmax - log_pmin) * self.np_rng.random(n_massive))
-            * is_binary
+        periods = np.exp(
+            log_pmin + (log_pmax - log_pmin) * self.np_rng.random(n_massive)
         )
 
         # Vectorized companion mass assignment
@@ -71,15 +90,11 @@ class BinaryPopulation:
         else:
             m2 = cfg.mcomp + (m1 - cfg.mcomp) * self.np_rng.random(n_massive)
 
-        m2 = np.minimum(m2, m1) * is_binary
+        m2 = np.minimum(m2, m1)
 
         # Vectorized Semi-Major Axis calculation
         q = np.divide(m2, m1, out=np.zeros_like(m1), where=m1 > 0)
-        a = np.where(
-            is_binary,
-            self.AFAC * (m1 ** (1 / 3)) * ((1.0 + q) ** (1 / 3)) * (periods ** (2 / 3)),
-            0.0,
-        )
+        a = self.AFAC * (m1 ** (1 / 3)) * ((1.0 + q) ** (1 / 3)) * (periods ** (2 / 3))
 
         # Vectorized lifetimes
         t_off1 = np.array([self.lifetime_table.get_lifetime(m) for m in m1])
@@ -105,7 +120,18 @@ class BinaryPopulation:
         logger.info(f"Initialized {n_massive} massive binaries in vectorized memory.")
 
     def evolve(self, tnow: float, dt: float) -> tuple[float, float, int, int]:
-        fsur_val = getattr(self.config, "fsur", getattr(self.config, "f_sur", 1.0))
+        """Advance the population by one timestep.
+
+        Returns (lumx_tot, nphot_tot, nactive, ndead):
+            lumx_tot: summed active-HMXB X-ray luminosity, in erg/s.
+            nphot_tot: effective ionising photon rate from HMXBs, in s^-1
+                (see the Phase 3 comment below for its provenance).
+            nactive: number of primary supernovae during *this* timestep
+                (a formation-rate count, not a running census -- see the
+                Phase 3 comment below).
+            ndead: cumulative number of binaries with both stars now
+                compact remnants.
+        """
         mcomp_abs = abs(self.config.mcomp)
 
         # --- Phase 1: Primary Supernova Transitions ---
@@ -130,11 +156,36 @@ class BinaryPopulation:
                 self.nturn[i] = 1
 
                 if floss <= 0.5:
+                    # Deterministic sudden-mass-loss survival criterion
+                    # (Power et al. 2009, Sec. 2.1) -- no additional
+                    # stochastic term in the reference model.
                     mtot = self.m1[i] + self.m2[i]
                     if mtot > 0:
                         self.a[i] *= deltam / mtot
                         self.period[i] = self.PFAC * np.sqrt((self.a[i] ** 3) / mtot)
-                    self.is_survived[i] = self.np_rng.random() <= fsur_val
+                    self.is_survived[i] = True
+
+                    # HMXB activation gate: f_sur, the probability that a
+                    # surviving, sufficiently massive binary is observed
+                    # as an active HMXB (Power et al. 2009, Sec. 2.1;
+                    # main.f: `ran3(iseed).le.fbin`, which the reference
+                    # code names `fbin` despite it being the paper's
+                    # f_sur, not a binary fraction). The X-ray luminosity
+                    # is drawn exactly once, here, and held fixed for the
+                    # rest of the binary's active HMXB lifetime -- it is
+                    # NOT redrawn every timestep (get_lumx.f is likewise
+                    # called only once per system, at primary SN).
+                    if (
+                        self.m2[i] > mcomp_abs
+                        and self.np_rng.random() <= self.config.fsur
+                    ):
+                        self.lum_xray[i] = self.xray_calc.get_lumx(
+                            self.m1[i],
+                            self.m2[i],
+                            self.period[i],
+                            self.a[i],
+                            rng=self.np_rng,
+                        )
                 else:
                     self.is_survived[i] = False
 
@@ -148,40 +199,44 @@ class BinaryPopulation:
                 self.turnoff_time[i] = 0.0
                 self.nturn[i] = 2
                 self.is_survived[i] = False
+                self.lum_xray[i] = 0.0
 
-        # --- Phase 3: Evaluate Active HMXBs ---
-        # Systems currently in HMXB phase (nturn == 1) that have NOT reached secondary turnoff
-        active_hmxb_mask = (self.nturn == 1) & self.is_survived & (self.m2 >= mcomp_abs)
+        # --- Phase 3: Aggregate observables ---
+        # self.lum_xray already holds each active HMXB's persistent
+        # luminosity (drawn once, at activation, in Phase 1 above) --
+        # sum as-is rather than redrawing every timestep.
+        #
+        # self.lum_xray is stored internally normalized by `lunit`
+        # (matching xray_calc's internal lxmin/lxmax and Eddington-limit
+        # bookkeeping, and the reference get_lumx.f's own convention).
+        # The reference Fortran writes this normalized sum straight to
+        # file under a misleading "lx_tot/ergs" header -- main.f never
+        # multiplies back by lunit either. That is a units bug, not
+        # something to reproduce: evolve()'s returned lumx_tot is scaled
+        # back to actual erg/s here so it means what its name says.
+        lumx_tot = float(np.sum(self.lum_xray)) * self.config.lunit
 
-        self.lum_xray.fill(0.0)
-        if np.any(active_hmxb_mask):
-            hmxb_idx = np.where(active_hmxb_mask)[0]
-            for i in hmxb_idx:
-                self.lum_xray[i] = self.xray_calc.get_lumx(
-                    self.m1[i],
-                    self.m2[i],
-                    self.period[i],
-                    self.a[i],
-                    iseed=None,
-                    use_weibull=True,
-                )
-
-        lumx_tot = float(np.sum(self.lum_xray))
-
-        # --- Counts & Photon Totals ---
-        nactive = int(np.count_nonzero(self.nturn == 1))
+        # --- Counts ---
+        # `nactive` in the reference model (main.f) is reset to zero every
+        # timestep and counts only the primary supernovae that occur
+        # *during this step* (nactive=nactive+1 inside the nturn==0
+        # branch, unconditional on survival/activation) -- it is a
+        # formation-rate column, not a running census of currently-active
+        # HMXBs. sn1_mask, computed above, is exactly that set of events.
+        nactive = int(np.count_nonzero(sn1_mask))
         ndead = int(np.count_nonzero(self.nturn == 2))
 
-        nphot_tot = 0.0
-        ms_mask = self.nturn == 0
-        if np.any(ms_mask):
-            for i in np.where(ms_mask)[0]:
-                ng1 = self.ionizing_table.get_ngamma(self.m1[i])
-                ng2 = self.ionizing_table.get_ngamma(self.m2[i])
-                t1, t2 = self.turnoff_time[i], self.t2_lifetime[i]
-                if t1 > 0 and t2 > 0:
-                    nphot_tot += 10.0 ** (
-                        ng1 + np.log10(dt / t1) + ng2 + np.log10(dt / t2) - 60
-                    )
+        # --- Ionising photon rate ---
+        # main.f computes nphot_tot twice: once from the stellar get_ngamma
+        # tables (main-sequence UV budget), then immediately overwrites it
+        # (before writing to file) with an empirical conversion of the
+        # *X-ray* luminosity itself into a photoionising rate, assuming a
+        # spectrum between 13.6 eV and 1500 eV referenced against an upper
+        # bound of 1e6 eV. Only this second formula reaches the reference
+        # output; the get_ngamma-based value is dead code there. This
+        # therefore reproduces the second formula, not the first -- the
+        # ionizing_table/get_ngamma machinery is retained but is no longer
+        # used to compute nphot_tot.
+        nphot_tot = lumx_tot * self.NPHOT_PER_LUMX
 
         return lumx_tot, nphot_tot, nactive, ndead

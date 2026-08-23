@@ -37,7 +37,7 @@ def main():
 
     print("\nSimulation complete!")
     print(f"Output directory: {args.output}")
-    print(f"Total binaries: {len(sim.population.binaries)}")
+    print(f"Total binaries: {len(sim.population.m1)}")
     print(f"Final time: {results[-1]['time']} Myr")
     print(f"Final X-ray luminosity: {results[-1]['lumx_tot']:.2e} erg/s")
 
