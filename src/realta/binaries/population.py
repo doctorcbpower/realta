@@ -13,7 +13,13 @@ logger = logging.getLogger("realta")
 
 
 class BinaryPopulation:
-    """Vectorized binary population manager."""
+    """Vectorized binary population manager.
+
+    The core Monte Carlo engine ported from the reference Fortran
+    (`gc_hmxbs/main.f`, `make_stars.f`) -- see docs/provenance.md for
+    the full paper-equation -> Fortran routine -> implementation ->
+    test traceability table this class's methods are part of.
+    """
 
     PFAC = 365.229126
     AFAC = 0.0193852859
