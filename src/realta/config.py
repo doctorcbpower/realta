@@ -12,7 +12,11 @@ class SimulationConfig:
     """Configuration for the HMXRB simulation."""
 
     ntot: int = 100000
-    mmin: float = 0.01
+    # Lower stellar mass bound, Msun. 0.1 is the practical stellar
+    # lower-mass cutoff (objects below ~0.08 Msun are substellar, not
+    # true hydrogen-burning stars) -- see imf/kroupa.py's class
+    # docstring for how this interacts with the Kroupa IMF's breakpoints.
+    mmin: float = 0.1
     mmax: float = 100.0
     mcut: float = 8.0
     tmax: float = 100.0
@@ -31,18 +35,15 @@ class SimulationConfig:
     # criterion -- Power et al. 2009, Section 2.1) goes on to be counted
     # as an active HMXB. This is the paper's own f_sur: "if the binary
     # remains bound, then it has a probability of f_sur that it will
-    # evolve into a HMXB" (Sec. 2.1). The reference Fortran (main.f)
-    # implements exactly this with a variable it happens to call `fbin`
-    # (`ran3(iseed).le.fbin`), which does NOT match the paper's own
-    # notation and is not a primordial binary fraction -- every massive
-    # star above `mcut` is assigned a companion at formation regardless
-    # (fpbin=1.0 in the reference make_stars.f). Renamed here to `fsur`
-    # to match the paper. fsur=1 (Fig. 1's baseline) means every bound
-    # binary becomes an active HMXB; the paper's Figs 2-3 explore
-    # fsur < 1 as a post-hoc linear rescaling of a single fsur=1 run's
-    # aggregate output rather than by re-drawing the population, since
-    # the two are equivalent in expectation -- Realta instead re-draws
-    # per run (matching main.f exactly), so re-run with a different
+    # evolve into a HMXB" (Sec. 2.1). Named `fsur` here to match the
+    # paper's own notation -- note this is NOT a primordial binary
+    # fraction -- every massive star above `mcut` is assigned a
+    # companion at formation regardless. fsur=1 (Fig. 1's baseline)
+    # means every bound binary becomes an active HMXB; the paper's
+    # Figs 2-3 explore fsur < 1 as a post-hoc linear rescaling of a
+    # single fsur=1 run's aggregate output rather than by re-drawing
+    # the population, since the two are equivalent in expectation --
+    # Realta instead re-draws per run, so re-run with a different
     # `fsur` rather than rescaling `lumx_tot`/`nphot_tot` externally.
     fsur: float = 0.5
 
@@ -51,19 +52,15 @@ class SimulationConfig:
 
     # X-ray luminosity bounds for the per-HMXB draw, as log10(erg/s) --
     # e.g. lxmin=33.0 means 1e33 erg/s, NOT the linear value 1e33 itself.
-    # Matches the reference Fortran parameter file's convention exactly
-    # (main.f: `lxmin = 10**(lxmin-alog10(lunit))`) and config.yml's
-    # defaults (33.0, 39.0 -> 1e33-1e39 erg/s).
+    # config.yml's defaults (33.0, 39.0 -> 1e33-1e39 erg/s).
     lxmin: float = 33.0
     lxmax: float = 39.0
     lunit: float = 1.0e33
 
     # Shape of the per-binary X-ray luminosity draw (xray/luminosity.py).
-    # "weibull": peaked distribution rejection-sampled below the Eddington
-    #   luminosity -- matches every real run of the Fortran reference
-    #   (get_lumx.f only takes its "uniform" branch when iseed is exactly
-    #   -1, a debug/test sentinel never used by main.f, which always sets
-    #   iseed = -abs(iseed)).
+    # "weibull": peaked distribution rejection-sampled below the
+    #   Eddington luminosity -- Realta's default, matching Power et al.
+    #   (2009), Sec. 2.2.
     # "uniform": flat log-uniform draw between lxmin and lxmax.
     xray_distribution: str = "weibull"
 
