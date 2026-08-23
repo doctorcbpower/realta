@@ -1,3 +1,3 @@
-from realta.imf.kroupa import KroupaIMF
+from realta.xray.luminosity import XRayLuminosity
 
-__all__ = ["KroupaIMF"]
+__all__ = ["XRayLuminosity"]

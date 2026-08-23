@@ -1,3 +1,3 @@
-from realta.imf.kroupa import KroupaIMF
+from realta.binaries.population import BinaryPopulation
 
-__all__ = ["KroupaIMF"]
+__all__ = ["BinaryPopulation"]

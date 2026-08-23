@@ -170,6 +170,105 @@ class RemnantTable(DataTable):
         return 10.0**log_mfin
 
 
+class MSLuminosityTable(DataTable):
+    """Population-total main-sequence bolometric luminosity vs time.
+
+    Source: FSPS (Conroy, Gunn & White 2009; python-fsps wrapper by
+    Foreman-Mackey et al., MIT licensed), Kroupa IMF, instantaneous-burst
+    single stellar population, scaled to a 1e6 Msun cluster (matching
+    Power et al. 2009's fiducial model). Generation script:
+    notebooks_helper/generate_ms_luminosity_table.py.
+
+    This is a genuinely different quantity from the reference Fortran's
+    (dead-code, never-output) get_ngamma-based MS estimate in
+    IonizingPhotonTable/get_ngamma -- it is the FULL population's total
+    bolometric luminosity (all masses, all evolutionary phases in FSPS'
+    isochrones), not just the ionising photon budget of M >= 8 Msun
+    stars. It is not part of the HMXB evolution loop and is not consumed
+    by BinaryPopulation.evolve() -- it exists for reproducing Fig. 1 of
+    Power et al. (2009) (the "Luminosity - MS lifetime" curve) and
+    similar population-luminosity comparisons.
+
+    Domain of validity: tabulated for 0.1-100 Myr only; get_lbol()
+    returns 0.0 outside that range rather than extrapolating (a
+    population's bolometric luminosity is not well described by a
+    log-log linear extrapolation of a 64-point SSP track). imetal=1
+    (Z=0) has no true zero-metallicity match in FSPS's isochrone
+    libraries -- that table uses the lowest available FSPS metallicity
+    as a documented proxy; see the file's own header and the generation
+    script for the actual Z used.
+    """
+
+    METAL_FILES: ClassVar[dict[int, str]] = {
+        1: "ms_lbol_z0.dat",
+        2: "ms_lbol_z8e-3.dat",
+        3: "ms_lbol_z2e-2.dat",
+    }
+
+    def __init__(self, imetal: int = 2, data_dir: str | None = None):
+        super().__init__(data_dir)
+        self.imetal = imetal
+        self.log_age = np.array([])
+        self.log_lbol = np.array([])
+        self.load()
+
+    def load(self):
+        filename = self.METAL_FILES.get(self.imetal, self.METAL_FILES[2])
+        filepath = self.data_dir / filename
+
+        if not filepath.exists():
+            logger.warning(
+                f"MS luminosity data file {filepath} not found. "
+                "get_lbol() will return 0.0 for all ages."
+            )
+            return
+
+        try:
+            with open(filepath, "r") as f:
+                lines = f.readlines()
+
+            data_lines = lines[3:]
+            ages = []
+            lbols = []
+
+            for line in data_lines:
+                if line.strip() and not line.startswith("#"):
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        ages.append(float(parts[0]))
+                        lbols.append(float(parts[1]))
+
+            self.log_age = np.log10(np.array(ages))
+            self.log_lbol = np.array(lbols)
+            self.loaded = True
+        except (FileNotFoundError, ValueError, IndexError) as e:
+            logger.error(f"Error loading MS luminosity data: {e}")
+
+    def get_lbol(self, age_myr: float) -> float:
+        """Total population bolometric luminosity at a given age, erg/s.
+
+        Returns 0.0 for ages outside the tabulated range (including
+        age_myr <= 0) or if the table failed to load, rather than
+        extrapolating -- see the class docstring.
+        """
+        if not self.loaded or len(self.log_age) < 2 or age_myr <= 0.0:
+            return 0.0
+
+        lage = np.log10(age_myr)
+        if lage < self.log_age[0] or lage > self.log_age[-1]:
+            return 0.0
+
+        raw_idx = int(np.searchsorted(self.log_age, lage, side="right") - 1)
+        idx = max(0, min(raw_idx, len(self.log_age) - 2))
+
+        a = (self.log_lbol[idx + 1] - self.log_lbol[idx]) / (
+            self.log_age[idx + 1] - self.log_age[idx]
+        )
+        b = self.log_lbol[idx] - a * self.log_age[idx]
+        log_lbol = a * lage + b
+        return 10.0**log_lbol
+
+
 class IonizingPhotonTable(DataTable):
     """Ionizing photon data table."""
 

@@ -2,8 +2,6 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-from realta.random import RandomGenerator
-
 
 class IMF(ABC):
     """Abstract base class for Initial Mass Functions."""
@@ -13,7 +11,7 @@ class IMF(ABC):
         """Cumulative distribution function P(<m)."""
 
     def sample(
-        self, n: int, mmin: float, mmax: float, rng: RandomGenerator
+        self, n: int, mmin: float, mmax: float, rng: np.random.Generator
     ) -> np.ndarray:
         """Sample n masses from the IMF using inverse transform sampling."""
         u = np.array([rng.random() for _ in range(n)])
