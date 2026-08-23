@@ -1,27 +1,28 @@
-simulation:
-  ntot: 100000
-  mmin: 0.01
-  mmax: 100.0
-  mcut: 8.0
-  tmax: 100.0
-  dt: 0.01
+# realta simulation configuration.
+#
+# Flat, one key per SimulationConfig field -- see src/realta/config.py
+# for the full field list, units, and provenance of each value.
 
-imf:
-  type: 2  # 1=Salpeter, 2=Kroupa, 3=Chabrier
+ntot: 100000
+mmin: 0.01
+mmax: 100.0
+mcut: 8.0
+tmax: 100.0
+dt: 0.01
 
-binaries:
-  pmin: 0.1
-  pmax: 1000.0
-  mcomp: 0.5
-  fbin: 0.5
+imf_type: 2 # 1=Salpeter, 2=Kroupa, 3=Chabrier
 
-metallicity:
-  imetal: 2  # 1=Z=0, 2=Z=0.008, 3=Z=0.02
+pmin: 0.1
+pmax: 1000.0
+mcomp: 0.5
+fsur: 0.5 # HMXB activation probability for a bound post-SN binary (Power et al. 2009, Sec. 2.1)
 
-xray:
-  lxmin: 33.0
-  lxmax: 39.0
-  lunit: 1.0e33
+imetal: 2 # 1=Z=0, 2=Z=0.008, 3=Z=0.02
 
-random:
-  iseed: -12345
+lxmin: 33.0 # log10(erg/s), NOT the linear value
+lxmax: 39.0 # log10(erg/s), NOT the linear value
+lunit: 1.0e+33
+
+xray_distribution: weibull # "weibull" (reference default) or "uniform"
+
+iseed: -12345
