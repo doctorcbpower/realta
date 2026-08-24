@@ -191,6 +191,28 @@ class SimulationConfig:
     # RLOF classification entirely rather than crashing.
     use_rlof_classifier: bool | None = None
 
+    # Post-SN secondary Roche-lobe overflow (docs/science/paper1-
+    # followup-prompt.md) -- independent of use_rlof_classifier above,
+    # which only covers PRE-SN interaction between two still-live
+    # stars. This is the physically dominant real HMXB-formation
+    # channel: the secondary's own later RLOF onto the by-then-compact
+    # primary (Case B/C mass transfer), checked every timestep once
+    # nturn==1 (primary already compact, secondary not yet exploded).
+    # Deliberately minimal scope: a single RLOF-only trigger (no wind-
+    # accretion/RLOF-fed spectral distinction), no consequence model
+    # (secondary mass/envelope and the compact primary's mass are left
+    # unchanged -- Hovis-Afflerbach et al. 2025's stripped-donor
+    # properties remain an explicit, separate extension point, not
+    # implemented here). On trigger, HMXB activation becomes CERTAIN
+    # (not a stochastic `fsur` draw) rather than the existing wind-fed
+    # approximation `fsur` represents -- real Roche-lobe accretion onto
+    # a compact object is qualitatively different from what `fsur` is
+    # meant to capture. Default False reproduces the pre-existing
+    # baseline exactly (no new code path runs at all). Requires
+    # imetal=2 or 3, same as use_rlof_classifier -- skipped with a
+    # logged warning at imetal=1 (Z=0).
+    use_post_sn_rlof: bool = False
+
     # Critical mass ratio (q1 = M_donor/M_companion) above which a
     # Roche-lobe-overflowing MS donor merges dynamically rather than
     # transferring mass stably (Hurley, Tout & Pols 2002, Sec. 2.6.4).

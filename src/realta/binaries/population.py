@@ -11,6 +11,8 @@ from realta.binaries.interaction import (
     apply_stable_mass_transfer,
     find_rlof_onset,
     merge_stellar_masses,
+    rejuvenate_ms_gainer,
+    roche_lobe_radius,
 )
 from realta.config import SimulationConfig
 from realta.imf.factory import get_imf
@@ -422,16 +424,62 @@ class BinaryPopulation:
                         self.a[i] = new_a_rsun / self.RSUN_PER_AU
                         mtot = new_donor + new_companion
                         self.period[i] = self.PFAC * np.sqrt((self.a[i] ** 3) / mtot)
-                        # Both stars' lifetime clocks reset from tnow at
-                        # their new masses -- the same full-reset
-                        # simplification used for mergers above, not
-                        # partial rejuvenation; see the proposal doc.
-                        self.turnoff_time[i] = tnow + self.lifetime_table.get_lifetime(
-                            self.m1[i]
+                        # Donor's lifetime clock: full-reset
+                        # simplification (same as mergers) -- no
+                        # verified response/rejuvenation prescription
+                        # for a mass-LOSING MS/HG donor is applied here.
+                        # Companion's (gainer's) lifetime clock:
+                        # rejuvenated via Tout et al. (1997) eq. 41 (B3,
+                        # docs/science/paper1-detailed-work-breakdown.md)
+                        # instead of a full reset -- see
+                        # binaries/interaction.py::rejuvenate_ms_gainer
+                        # -- but only when the companion is genuinely
+                        # MS-phase at tnow (that formula's own scope);
+                        # falls back to the full-reset simplification
+                        # otherwise (an HG+ companion, or one past this
+                        # module's t_BGB scope -- classify_rlof() places
+                        # no phase constraint on the companion for
+                        # STABLE_MASS_TRANSFER, so this is a real,
+                        # if presumably uncommon, case to guard).
+                        if self.rlof_donor_is_star1[i]:
+                            donor_new_mass, companion_new_mass = (
+                                self.m1[i],
+                                self.m2[i],
+                            )
+                        else:
+                            donor_new_mass, companion_new_mass = (
+                                self.m2[i],
+                                self.m1[i],
+                            )
+                        try:
+                            companion_is_ms = main_sequence.phase(
+                                companion_mass, z, tnow
+                            ) in (0, 1)
+                        except ValueError:
+                            companion_is_ms = False
+                        if companion_is_ms:
+                            remaining_fraction = rejuvenate_ms_gainer(
+                                companion_mass, companion_new_mass, tnow, z
+                            )
+                            companion_new_time = (
+                                tnow
+                                + remaining_fraction
+                                * self.lifetime_table.get_lifetime(companion_new_mass)
+                            )
+                        else:
+                            companion_new_time = (
+                                tnow
+                                + self.lifetime_table.get_lifetime(companion_new_mass)
+                            )
+                        donor_new_time = tnow + self.lifetime_table.get_lifetime(
+                            donor_new_mass
                         )
-                        self.t2_lifetime[i] = tnow + self.lifetime_table.get_lifetime(
-                            self.m2[i]
-                        )
+                        if self.rlof_donor_is_star1[i]:
+                            self.turnoff_time[i] = donor_new_time
+                            self.t2_lifetime[i] = companion_new_time
+                        else:
+                            self.turnoff_time[i] = companion_new_time
+                            self.t2_lifetime[i] = donor_new_time
                     elif self.rlof_outcome[i] == RLOFOutcome.COMMON_ENVELOPE:
                         # HG donors dynamically unstable at RLOF (see
                         # binaries/interaction.py::hg_q_crit) resolve
@@ -466,12 +514,31 @@ class BinaryPopulation:
                             self.period[i] = self.PFAC * np.sqrt(
                                 (self.a[i] ** 3) / mtot
                             )
-                            self.turnoff_time[i] = (
-                                tnow + self.lifetime_table.get_lifetime(self.m1[i])
-                            )
-                            self.t2_lifetime[i] = (
-                                tnow + self.lifetime_table.get_lifetime(self.m2[i])
-                            )
+                            # Donor stripped to its bare core -- full-
+                            # reset lifetime-clock simplification
+                            # (matching STABLE_MASS_TRANSFER's donor
+                            # treatment above). The companion is
+                            # genuinely mass-unaffected by a surviving
+                            # CE (apply_common_envelope's own
+                            # docstring: "the companion is unaffected")
+                            # -- its lifetime clock is left entirely
+                            # untouched here, not reset. A reset would
+                            # incorrectly de-age it (pretend it just
+                            # formed anew at tnow) despite nothing
+                            # having physically happened to it -- found
+                            # while implementing B3's rejuvenation fix
+                            # for STABLE_MASS_TRANSFER (a related but
+                            # distinct issue: that companion genuinely
+                            # gains mass, this one doesn't change at
+                            # all), see docs/provenance.md Section 12.
+                            if self.rlof_donor_is_star1[i]:
+                                self.turnoff_time[i] = (
+                                    tnow + self.lifetime_table.get_lifetime(self.m1[i])
+                                )
+                            else:
+                                self.t2_lifetime[i] = (
+                                    tnow + self.lifetime_table.get_lifetime(self.m2[i])
+                                )
                         else:
                             # Cores coalesce before the envelope is
                             # fully ejected -- merge the donor's core
@@ -559,6 +626,67 @@ class BinaryPopulation:
                         )
                 else:
                     self.is_survived[i] = False
+
+        # --- Phase 1.5: Post-SN secondary Roche-lobe overflow (opt-in,
+        # config.use_post_sn_rlof) ---
+        # docs/science/paper1-followup-prompt.md. Inert when disabled
+        # (mask never matches, since it's gated on the config flag
+        # itself), so it cannot perturb the pre-existing baseline.
+        # Checked every timestep (not precomputed like Phase 0's
+        # rlof_time) because the secondary's radius grows continuously
+        # and the trigger is a live comparison against its own Roche
+        # lobe -- matching the existing SN1/SN2 phases' own live-check
+        # style, not Phase 0's precompute-once pattern (which needs a
+        # root-finder because Phase 0 must know the crossing time in
+        # advance to place it correctly relative to nturn transitions;
+        # here nturn==1 is already the gate, so no such ordering
+        # problem exists).
+        if self.config.use_post_sn_rlof:
+            z2 = _IMETAL_TO_Z.get(self.config.imetal)
+            if z2 is None:
+                logger.warning(
+                    "use_post_sn_rlof=True but imetal=%s (Z=0): the "
+                    "Hurley/Tout stellar formulae are undefined at Z=0 "
+                    "-- skipping post-SN secondary RLOF for this run.",
+                    self.config.imetal,
+                )
+            else:
+                # Not yet active (lum_xray==0) doubles as "hasn't
+                # already triggered via this channel or via the
+                # stochastic fsur draw above" -- once either sets
+                # lum_xray>0, this mask naturally stops matching.
+                psr_mask = (self.nturn == 1) & self.is_survived & (self.lum_xray == 0.0)
+                if np.any(psr_mask):
+                    idx_psr = np.where(psr_mask)[0]
+                    for i in idx_psr:
+                        if self.m2[i] <= mcomp_abs:
+                            continue
+                        try:
+                            donor_phase = main_sequence.phase(self.m2[i], z2, tnow)
+                            if donor_phase in (0, 1):
+                                donor_radius = main_sequence.ms_radius(
+                                    self.m2[i], z2, tnow
+                                )
+                            else:
+                                donor_radius = main_sequence.hg_radius(
+                                    self.m2[i], z2, tnow
+                                )
+                        except ValueError:
+                            # Past this module's t_BGB scope, or mass
+                            # outside its supported range -- not
+                            # modelled, skip (same as classify_rlof's
+                            # PHASE_NOT_MODELLED handling).
+                            continue
+                        q2 = self.m2[i] / self.m1[i]
+                        r_l2 = roche_lobe_radius(self.a[i] * self.RSUN_PER_AU, q2)
+                        if donor_radius >= r_l2:
+                            self.lum_xray[i] = self.xray_calc.get_lumx(
+                                self.m1[i],
+                                self.m2[i],
+                                self.period[i],
+                                self.a[i],
+                                rng=self.np_rng,
+                            )
 
         # --- Phase 2: Secondary Supernova Transitions ---
         # Triggers ONLY when secondary star completes lifetime (tnow >= t2_lifetime)
