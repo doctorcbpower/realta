@@ -80,10 +80,53 @@ class SimulationConfig:
     # IMF type: 1=Salpeter, 2=Kroupa, 3=Chabrier
     imf_type: int = 2
 
+    # Continuous single power-law IMF slope (dN/dm ~ m^-imf_slope),
+    # overriding SalpeterIMF's own default alpha=2.35 -- only applies
+    # when imf_type=1; ignored otherwise. If None, SalpeterIMF's own
+    # default is used, reproducing the pre-existing baseline exactly.
+    # See imf/factory.py::get_imf's docstring for why this is
+    # Salpeter-only (docs/science/paper1-detailed-work-breakdown.md,
+    # item A4).
+    imf_slope: float | None = None
+
     # Binary parameters
     pmin: float = 0.1
     pmax: float = 1000.0
     mcomp: float = 0.5
+
+    # Fraction of M >= mcut stars that get a companion at all (A1,
+    # docs/science/paper1-detailed-work-breakdown.md -- roadmap item
+    # 7). Default 1.0 reproduces the pre-existing Power et al. (2009)
+    # baseline exactly (every massive star paired, Sec. 2.1) -- the
+    # per-star Bernoulli draw this introduces is skipped entirely at
+    # binary_fraction=1.0 (see generate_population), so the RNG stream
+    # is untouched by default, the same pattern already used for
+    # p_merge==0. A star that doesn't get a companion (m2=0, period=0,
+    # a=0 -- placeholder values, not a real orbit) is still tracked
+    # through SN/lifetime bookkeeping, unlike the "single"
+    # binary_prescription (which empties the tracked array entirely) --
+    # this generalizes that special case to any fraction in [0, 1].
+    binary_fraction: float = 1.0
+
+    # Mass-ratio distribution for assigned companions: "uniform"
+    # (default, unchanged baseline -- m2 ~ Uniform(mcomp, m1), Power et
+    # al. 2009 Sec. 2.1) or "flat_q" (m2 = m1 * Uniform(0, 1), flat in
+    # mass ratio q rather than in absolute companion mass -- the
+    # alternative development-roadmap.md item 7's own example names).
+    mass_ratio_distribution: str = "uniform"
+
+    # Period distribution: "log_uniform" (default, unchanged baseline
+    # -- log P ~ Uniform(log pmin, log pmax)) or "log_normal" (the
+    # other alternative development-roadmap.md item 7 names). The
+    # log_normal parameters are NOT literature-sourced -- a named,
+    # generic simplification (like Q_CRIT_MS elsewhere): mean and
+    # width are derived directly from pmin/pmax (mu = midpoint of
+    # log10(pmin)/log10(pmax), sigma = range/6, i.e. pmin/pmax sit at
+    # roughly +-3 sigma), truncated to [pmin, pmax] so it can never
+    # sample outside the configured bounds. See
+    # binaries/population.py::generate_population for the exact
+    # formula.
+    period_distribution: str = "log_uniform"
 
     # Probability that a binary which remains bound after the primary
     # supernova (floss <= 0.5, the deterministic sudden-mass-loss
@@ -260,6 +303,35 @@ class SimulationConfig:
             raise ValueError(f"alpha_ce must be > 0, got {self.alpha_ce}")
         if self.lambda_ce <= 0.0:
             raise ValueError(f"lambda_ce must be > 0, got {self.lambda_ce}")
+        if self.imf_slope is not None:
+            if self.imf_slope <= 0.0:
+                raise ValueError(f"imf_slope must be > 0, got {self.imf_slope}")
+            if self.imf_slope == 1.0:
+                # SalpeterIMF.cdf's denominator (mmax**beta - mmin**beta,
+                # beta = 1 - alpha) is identically 0 at alpha=1.0 --
+                # this pre-existing singularity was unreachable before
+                # imf_slope made alpha user-configurable (the 2.35
+                # default never hits it); reject explicitly rather than
+                # silently producing NaN masses.
+                raise ValueError(
+                    "imf_slope must not be exactly 1.0 -- SalpeterIMF's "
+                    "CDF is singular there (a log-form CDF would be "
+                    "needed for that case, not implemented)"
+                )
+        if not 0.0 <= self.binary_fraction <= 1.0:
+            raise ValueError(
+                f"binary_fraction must be in [0, 1], got {self.binary_fraction}"
+            )
+        if self.mass_ratio_distribution not in ("uniform", "flat_q"):
+            raise ValueError(
+                "mass_ratio_distribution must be 'uniform' or 'flat_q', "
+                f"got {self.mass_ratio_distribution!r}"
+            )
+        if self.period_distribution not in ("log_uniform", "log_normal"):
+            raise ValueError(
+                "period_distribution must be 'log_uniform' or 'log_normal', "
+                f"got {self.period_distribution!r}"
+            )
         if self.p_merge_max_period < 0.0:
             raise ValueError(
                 f"p_merge_max_period must be >= 0, got {self.p_merge_max_period}"

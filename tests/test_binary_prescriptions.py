@@ -37,14 +37,22 @@ def test_default_prescription_matches_baseline_exactly():
 
 
 def test_single_prescription_suppresses_binary_formation():
-    """'single' must produce zero binaries -- no companion, no period,
-    no HMXB channel -- while total_mass_msun (needed for L_bol/L_UV
-    rescaling) is computed from the full IMF sample as usual.
+    """'single' must produce zero *binaries* -- no companion, no
+    period, no HMXB channel -- while total_mass_msun (needed for
+    L_bol/L_UV rescaling) is computed from the full IMF sample as
+    usual. Unlike before A3 (docs/science/paper1-detailed-work-
+    breakdown.md), massive stars themselves are still tracked (m1
+    stays populated, via the same has_companion=False mechanism A1
+    uses for binary_fraction<1) -- needed so the massive-star
+    population still contributes to Q_H(t)/L_bol(t); only the HMXB/L_X
+    channel, which genuinely requires a companion, is suppressed.
     """
     config = SimulationConfig(ntot=5000, binary_prescription="single", iseed=7)
     pop = BinaryPopulation(config)
 
-    assert len(pop.m1) == 0
+    assert len(pop.m1) > 0
+    assert (pop.m2 == 0.0).all()
+    assert (pop.period == 0.0).all()
     assert pop.total_mass_msun > 0.0
 
     lumx_tot, _nphot_tot, nactive, ndead = pop.evolve(tnow=1.0, dt=1.0)
@@ -242,8 +250,47 @@ def test_invalid_binary_prescription_rejected():
         ("p_merge", 1.5),
         ("p_merge_max_period", -1.0),
         ("f_merge", -0.1),
+        ("imf_slope", -1.0),
+        ("imf_slope", 0.0),
+        ("imf_slope", 1.0),
     ],
 )
 def test_out_of_range_interaction_params_rejected(field, value):
+    with pytest.raises(ValueError):
+        SimulationConfig(**{field: value})
+
+
+def test_imf_slope_defaults_to_none_and_is_overridable():
+    """A4 (docs/science/paper1-detailed-work-breakdown.md): imf_slope
+    defaults to None (SalpeterIMF's own alpha=2.35 unchanged, current
+    baseline preserved) and is overridable to any positive value other
+    than 1.0 (see the singularity-rejection test above)."""
+    default_config = SimulationConfig(ntot=10, iseed=1)
+    assert default_config.imf_slope is None
+
+    custom_config = SimulationConfig(ntot=10, iseed=1, imf_type=1, imf_slope=1.8)
+    assert custom_config.imf_slope == 1.8
+
+
+def test_binary_sampling_distribution_defaults_match_baseline():
+    """A1 (docs/science/paper1-detailed-work-breakdown.md): the three
+    new fields must default to values reproducing the pre-existing
+    baseline exactly."""
+    config = SimulationConfig(ntot=10, iseed=1)
+    assert config.binary_fraction == 1.0
+    assert config.mass_ratio_distribution == "uniform"
+    assert config.period_distribution == "log_uniform"
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("binary_fraction", -0.1),
+        ("binary_fraction", 1.1),
+        ("mass_ratio_distribution", "nonsense"),
+        ("period_distribution", "nonsense"),
+    ],
+)
+def test_binary_sampling_distribution_invalid_values_rejected(field, value):
     with pytest.raises(ValueError):
         SimulationConfig(**{field: value})

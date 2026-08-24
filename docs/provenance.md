@@ -61,9 +61,11 @@ what a real IMF-sampled population would or wouldn't reach.
 | Power et al. (2009) reference | Realta implementation | Status |
 |---|---|---|
 | IMF sampling, all three forms (Salpeter, Kroupa, Chabrier -- Sec. 2.2) | `imf/salpeter.py`, `imf/kroupa.py`, `imf/chabrier.py`, `imf/factory.py::get_imf` | done, **unit-tested** — `tests/test_imf.py` covers all three (CDF boundary + monotonicity + sampling bounds). Kroupa additionally **pinned (integration)**: `n_massive`/`total_mass_msun` are direct output of Kroupa sampling in the regression configs. `config.mmin` default is 0.1 Msun (the practical stellar lower-mass cutoff) -- see `imf/kroupa.py`'s class docstring. |
-| Sec. 2.1: all massive stars (M ≥ `mcut`) are in binaries at formation | `binaries/population.py::generate_population` — every `m1 >= mcut` star unconditionally gets `m2`/`period`/`a` | pinned (integration) — `n_massive` (251) is a direct pinned value |
-| Companion mass distribution, flat between `mcmpct` and `m1` (Sec. 2.1) | `binaries/population.py::generate_population` (`m2 = cfg.mcomp + (m1 - cfg.mcomp) * rng.random()`, clipped to `m1`) | pinned (integration) — `m2` feeds `floss`/`mtot` in `evolve()` Phase 1, so a change here would move the pinned trajectory, but `m2` itself is not directly asserted |
-| Orbital period, log-flat between `pmin`/`pmax` (Sec. 2.1) | `binaries/population.py::generate_population` | **unit-tested** — `tests/test_population_generation.py::test_orbital_period_bounds_and_log_uniform_distribution` checks exact bounds plus the log-uniform shape statistically (fixed seed). Outside the integration pin's reach (`period` never feeds `floss`), so this test is the *only* coverage. |
+| Continuous single power-law IMF slope, `config.imf_slope` (A4, `docs/science/paper1-detailed-work-breakdown.md` -- not from Power et al., needed for Figure 4's `(alpha_IMF, f_bin)` degeneracy grid) | `imf/factory.py::get_imf`'s `slope` parameter, overriding `SalpeterIMF`'s own default `alpha=2.35`; `config.imf_slope: float \| None`, `None` reproducing the baseline exactly | **unit-tested, sensitivity-verified, one pre-existing edge case newly guarded**: `tests/test_imf.py` confirms the override reaches `SalpeterIMF.alpha`, that `None` matches the unmodified default, that it is silently ignored for Kroupa/Chabrier (no single power-law slope to override there), the expected direction (a shallower slope samples a higher mean mass), and a population-level numeric regression pin (`total_mass_msun`/`n_massive` for `imf_slope=1.8`). Deliberately Salpeter-only, not a new IMF family -- see `get_imf`'s own docstring. Found, while adding this, that `SalpeterIMF.cdf()`'s denominator (`mmax**beta - mmin**beta`, `beta = 1 - alpha`) is identically `0.0` at `alpha=1.0` -- a pre-existing singularity, unreachable before `imf_slope` made `alpha` user-configurable (the `2.35` default never hits it). Guarded in `config.py::SimulationConfig.__post_init__` (`imf_slope` must be `> 0` and `!= 1.0`) rather than fixed at the `SalpeterIMF` level (a log-form CDF for that case is not implemented) -- `tests/test_binary_prescriptions.py`/`test_imf.py` cover both the config-level rejection and the raw, unguarded `ZeroDivisionError` `get_imf()` itself would still hit if called directly with `slope=1.0`. |
+| Sec. 2.1: all massive stars (M ≥ `mcut`) are in binaries at formation | `binaries/population.py::generate_population` — every `m1 >= mcut` star unconditionally gets `m2`/`period`/`a` (default `binary_fraction=1.0` -- see next row) | pinned (integration) — `n_massive` (251) is a direct pinned value |
+| Independently configurable `binary_fraction`/`mass_ratio_distribution`/`period_distribution` (A1, `docs/science/paper1-detailed-work-breakdown.md` -- roadmap item 7, not from Power et al.) | `config.py::SimulationConfig.binary_fraction`/`mass_ratio_distribution`/`period_distribution`; `binaries/population.py::generate_population` | **unit-tested, sensitivity-verified, baseline confirmed untouched**: `tests/test_binary_sampling_distributions.py` covers `binary_fraction=1.0` (default) still pairing every star, `binary_fraction=0.0` giving all-placeholder (`m2=0`/`period=0`/`a=0`, still tracked through `m1` -- generalizing, not replacing, the `"single"` prescription's own array-emptying shortcut) companions, an intermediate value matching the configured fraction statistically, `mass_ratio_distribution="flat_q"` (uniform in `q=m2/m1`) vs. the default's different shape, `period_distribution="log_normal"` staying within `[pmin, pmax]` and centring on the pmin/pmax-derived `mu` (a *named, non-literature-sourced* simplification -- `mu`/`sigma` derived directly from `pmin`/`pmax`, truncated via `scipy.stats.truncnorm` so it can never sample outside the configured bounds), and a combined non-default pinned regression case. I verified sensitivity directly twice: (1) forced the new per-star companion-assignment Bernoulli draw to always fire, even at `binary_fraction=1.0` -- confirmed `tests/test_regression.py`'s pinned baseline trajectory breaks exactly as expected (the RNG stream shifts), reverted; (2) removed the RLOF-classifier precompute loop's new `self.m2[i] <= 0.0` skip guard -- confirmed a `binary_fraction<1` run crashes with `ValueError: mass_ratio must be positive, got 0.0` (a real divide-by-zero/inf-`q1` risk `find_rlof_onset`/`roche_lobe_radius` have no guard against on their own, since every existing unit test for them only ever passes a real, positive companion mass), reverted. The `has_companion` mask is also applied to the pre-SN merger channel's `did_merge` eligibility (a no-companion star's placeholder `period=0` would otherwise trivially satisfy `periods < p_merge_max_period`). |
+| Companion mass distribution, flat between `mcmpct` and `m1` (Sec. 2.1) | `binaries/population.py::generate_population` (`m2 = cfg.mcomp + (m1 - cfg.mcomp) * rng.random()`, clipped to `m1`) -- `mass_ratio_distribution="uniform"` (default, see above) | pinned (integration) — `m2` feeds `floss`/`mtot` in `evolve()` Phase 1, so a change here would move the pinned trajectory, but `m2` itself is not directly asserted |
+| Orbital period, log-flat between `pmin`/`pmax` (Sec. 2.1) | `binaries/population.py::generate_population` -- `period_distribution="log_uniform"` (default, see above) | **unit-tested** — `tests/test_population_generation.py::test_orbital_period_bounds_and_log_uniform_distribution` checks exact bounds plus the log-uniform shape statistically (fixed seed). Outside the integration pin's reach (`period` never feeds `floss`), so this test is the *only* coverage. |
 | Semi-major axis from Kepler's third law (Sec. 2.1) | `binaries/population.py::generate_population` (`AFAC` constant) | **unit-tested** — `test_semi_major_axis_matches_reference_formula` recomputes `a` independently from `m1`/`m2`/`period` and asserts an exact match (`rtol=1e-12`), and pins the exact value of `AFAC`. Note: `AFAC` is not independently re-derivable to full precision from Kepler's third law alone (a from-scratch physical derivation gives a ~1% different prefactor) — a units/precision-convention detail, not a bug. `self.a` (this constant's output, threaded everywhere in `BinaryPopulation`) is in **AU**, not Rsun — see the "real bug found and fixed" row in Section 10 below for a case where that unit mattered and was originally missed. |
 | MS lifetime vs. mass, tabulated | `io/tables.py::LifetimeTable`, `data/lifetimes_z*.dat` (data table headers cite Schaerer et al. 1993) | pinned (integration) — `turnoff_time` gates the SN1 trigger, so the `ndead`/`nactive` trajectory is sensitive to it |
 
@@ -91,6 +93,8 @@ what a real IMF-sampled population would or wouldn't reach.
 |---|---|---|---|
 | Main-sequence bolometric luminosity vs. time | Not part of the ported Monte Carlo model — the 2009 paper's Fig. 1 MS curve was almost certainly generated with a population-synthesis code of the day (Starburst99 being the standard circa 2009) | `io/tables.py::MSLuminosityTable`, sourced from FSPS (`notebooks_helper/generate_ms_luminosity_table.py`) | done, untested, **and flagged**: FSPS vs. Starburst99 track differences (Padova vs. Geneva stellar evolution) are a documented literature-level systematic of up to a factor of a few in this exact age window (3–20 Myr) — see this session's SB99-vs-FSPS research summary. Not a bug, but worth stating explicitly wherever this reproduction is presented. |
 | MS/HMXB luminosity mass-normalization | n/a (this session's own bug, introduced when the FSPS table was added, not present in the original model) | `binaries/population.py::BinaryPopulation.total_mass_msun`, `io/tables.py::MSLuminosityTable.get_lbol(age_myr, total_mass_msun)` | `total_mass_msun` itself is **pinned (integration)** (17891.377637950565 Msun in both regression cases). `get_lbol()`'s rescaling formula is now **unit-tested** — `tests/test_ms_luminosity_table.py` checks exact linear scaling with mass (2x mass -> 2x luminosity, at several ages), zero-mass/zero-luminosity, the no-extrapolation domain boundary, and a value cross-check against `total_mass_msun`'s own pinned figure. All three metallicity tables (`imetal=1,2,3`) are loaded and checked, not just the default. |
+| L_bol/L_UV wired into `ClusterSimulation.run()`'s own per-timestep output (A2, `docs/science/paper1-detailed-work-breakdown.md`) | n/a -- Realta-specific integration | `simulation/cluster.py::ClusterSimulation.run()` (`lbol_tot`/`luv_tot` keys, alongside the pre-existing `lumx_tot`/`nphot_tot`) | **unit-tested**: `tests/test_cluster_simulation_observables.py` confirms both keys are present and finite for every timestep, and that they exactly match `ms_table.get_lbol()`/`uv_table.get_luv()` evaluated independently -- these used to be recomputed *after* a run completed, in `scripts/run_paper1_experiment.py`, duplicating logic; that script now reads them straight from `results` instead (`run_variant()` simplified accordingly, `MSLuminosityTable`/`UVLuminosityTable` imports removed there as now-unused). `lbol_tot = ms_lbol + lumx_tot`; `luv_tot` is MS-only (no accretion-UV model exists, unchanged scope note). |
+| Independent Q_H(t) from the massive-star population (A3, `docs/science/paper1-detailed-work-breakdown.md` -- previously `nphot_tot = NPHOT_PER_LUMX * lumx_tot`, a fixed constant multiple of L_X carrying zero independent information, see Section 3) | Massive-star ionizing-photon output, per star, summed over currently-alive `M >= 8` Msun stars | `simulation/cluster.py::ClusterSimulation._qh_ms_tot`, using the previously-unused `io/tables.py::IonizingPhotonTable.get_ngamma`; `qh_tot = qh_ms_tot + nphot_tot` in `run()`'s results | **unit-tested, sensitivity-verified, one real gap found and fixed along the way**: `tests/test_cluster_simulation_observables.py` confirms (1) a calibration check -- `get_ngamma(m)` interpreted as the *total* photon count over the star's whole MS lifetime (confirmed via its own MUNIT/MATOM baryon-count conversion), divided by `LifetimeTable.get_lifetime(m)` in seconds, lands within the well-known literature range for O/early-B ionizing rates at 10/40/80 Msun (Vacca, Garmany & Shull 1996, ApJ 460, 914) -- an order-of-magnitude sanity check, not an exact-match requirement; (2) `qh_tot` is not a fixed multiple of `lumx_tot` (confirms real independent variation, the actual thing A3 fixes); (3) a star stops contributing once its own `nturn`/lifetime clock says it has died, and a companion contributes correctly while alive across the whole `t2_lifetime` window (both hand-constructed scenarios, following `tests/test_evolve.py`'s own technique). I verified sensitivity directly: removed the `nturn==0` guard on the primary's contribution, confirmed both of those last two tests fail exactly as expected, reverted. Measured negligible runtime overhead on the full Paper 1 pipeline (~49s either way, `ntot=100_000` x 5 prescriptions x 201 steps) before finalizing the per-star-loop approach over a vectorized alternative. **Real gap found and fixed**: the `"single"` `binary_prescription` used to empty `BinaryPopulation.m1` entirely (`n_massive=0`), a shortcut that was harmless while only `L_X`/HMXB-related quantities read `m1` (correctly zero for single stars either way) -- but `_qh_ms_tot` also reads `m1`/`nturn` to know which massive stars exist, so with an empty array it silently reported `Q_H=0` for single-star populations, which is physically wrong (massive single stars still ionize). Migrated `"single"` onto the same `has_companion=False` mechanism A1 already built for `binary_fraction<1` (`m1` stays populated, `m2=0`) -- `L_X`/HMXB activation stay exactly zero either way (`m2=0` blocks that unconditionally), only `Q_H`/`L_bol` tracking is fixed. `tests/test_binary_prescriptions.py::test_single_prescription_suppresses_binary_formation` updated to assert the new (correct) `m1`-populated/`m2=0` state instead of the old empty-array one; `tests/test_cluster_simulation_observables.py::test_single_prescription_gives_nonzero_qh` pins the fix directly. |
 
 ## 6. Paper 1 binary-interaction and merger prescriptions
 
@@ -151,24 +155,70 @@ uses the global default, is unaffected) gives a real, non-degenerate
 mix of RLOF outcomes. See that config file's own comment for the
 verification detail.
 
-**Residual, understood degeneracy**: `standard_interaction` and
-`enhanced_interaction` (`interaction_boost=1.5` vs `3.0`) still
-produce visually indistinguishable Figure 1/2 curves in this specific
-config+seed -- expected, since `interaction_boost` only affects
-binaries the classifier found underwent `STABLE_MASS_TRANSFER`
-(Section 6's reconciliation table), and `interaction_boost` itself
-doesn't change *which* binaries get that outcome, only their `fsur`
-once they do. Confirmed directly: `enhanced_mergers`'s lower
-`q_crit_ms=0.4` also currently produces an *identical* RLOF-outcome
-distribution to the `q_crit_ms=0.695` default for this config+seed --
-checked directly by re-running `find_rlof_onset` at both thresholds
-for every generated binary; zero outcomes differ. This is the already-
-documented `find_rlof_onset` emergent property (Section 10 above): the
-automatically-selected donor is almost always the more massive star
-(`q1 > 1`), already far above either threshold, so lowering
-`q_crit_ms` from 0.695 to 0.4 has no binaries left to reclassify in
-this config. Not a new bug -- a further consequence of the existing,
-tested finding, now visible in the full pipeline's output.
+**Residual, understood degeneracy, root cause found (2026-08-24)**:
+`standard_interaction`/`enhanced_interaction`/`enhanced_mergers`
+produce bit-identical Figure 1/2 output in this config -- confirmed by
+diffing their `.tevol.dat` files directly (zero differences across all
+201 timesteps). Two separate causes, both now understood as expected
+physics, not bugs:
+
+1. `enhanced_mergers`'s lower `q_crit_ms=0.4` produces an *identical*
+   RLOF-outcome distribution to the `q_crit_ms=0.695` default --
+   checked directly by re-running `find_rlof_onset` at both thresholds
+   for every generated binary; zero outcomes differ. This is the
+   already-documented `find_rlof_onset` emergent property (Section 10
+   above): the automatically-selected donor is almost always the more
+   massive star (`q1 > 1`), already far above either threshold, so
+   lowering `q_crit_ms` has no binaries left to reclassify here.
+
+2. `interaction_boost` (`standard_interaction=1.5` vs
+   `enhanced_interaction=3.0`) never has anything to act on: it only
+   applies to binaries the classifier found underwent
+   `STABLE_MASS_TRANSFER`, and **`STABLE_MASS_TRANSFER` cannot fire at
+   all in the current design, for any config, not just this one**.
+   Traced this precisely (all 51 `STABLE_MASS_TRANSFER`-classified
+   binaries in this run, e.g. `m1=54.0, m2=2.6 Msun`): `generate_population`
+   always enforces `m2 <= m1`, and `STABLE_MASS_TRANSFER` requires
+   `q1 = donor/companion < q_crit < 1`, so the stable-MT donor is
+   *always* `m2`, the lighter star, by construction. But Realta only
+   tracks one explosion clock (`turnoff_time`), computed from `m1`'s
+   own (Schaerer) lifetime -- and `m1`, being far more massive, always
+   explodes first (e.g. `turnoff_time=4.4 Myr` for that 54 Msun
+   primary vs. `donor_tbgb=480 Myr` for its 2.6 Msun companion's own
+   Hurley/Tout MS+HG duration). `nturn` flips to 1 long before the
+   donor's own predicted `rlof_time`, and Phase 0 requires
+   `nturn==0`, so the event is permanently gated out.
+
+   This is *not* the two lifetime prescriptions disagreeing with each
+   other for a given star -- directly compared Schaerer vs. Hurley/
+   Tout `t_bgb` across 8-100 Msun at Z=0.008 and they agree to within
+   ~5% throughout (ratio 0.95-1.04, and Hurley/Tout is even slightly
+   *longer* above ~80 Msun). It is a structural/physical fact about
+   the mass hierarchy: pre-SN "stable mass transfer with the lighter
+   star as donor" requires the *lighter* star to evolve off the MS on
+   its own (hundred-Myr-scale) timescale, which is always far longer
+   than the *heavier* primary's own (few-Myr-scale) pre-SN lifetime --
+   so the primary has essentially always already exploded before this
+   channel could ever become physically reachable. `IMMEDIATE_MERGER`/
+   `COMMON_ENVELOPE` don't have this problem: their donor is (per the
+   same emergent property) typically `m1` itself, so both the RLOF
+   clock and the SN clock are the same star's, which agree to ~5% as
+   shown above.
+
+   The astrophysically important, missing piece this exposes is not a
+   fix to the pre-SN classifier, but a **structurally different,
+   not-yet-modelled channel**: the secondary star's *own* later
+   Roche-lobe overflow onto the now-compact primary (Case B/C mass
+   transfer onto a compact object, wind-accretion vs. RLOF) -- the
+   actual dominant real-world HMXB-formation pathway once the primary
+   has already collapsed. Phase 0 was scoped this session to pre-SN
+   interaction between two still-evolving stars only (`nturn==0`,
+   matching HTP02's own CE-eligible donor list); a post-SN
+   secondary-RLOF channel (`nturn==1`, donor = the still-evolving
+   secondary, companion = a compact remnant) is new scope, deliberately
+   not attempted here, and belongs on the roadmap for whenever the
+   mass/timescale regime it addresses is actually the one under study
+   -- see the "Known gaps" note below.
 
 ## 7. Fig. 1/2 UV observable (Paper 1, not in either paper's original code)
 
@@ -343,6 +393,24 @@ Closed this session:
   compete for the same star-count budget, so more of it lands above
   `mcut`) and reverified deterministic/sensitive the same way as every
   other pinned value in this document.
+- ~~No automated test exercises the RLOF-classifier pipeline or
+  `scripts/run_paper1_experiment.py` end to end~~ -- this was the
+  actual gap that let the AU/Rsun units bug (Section 10 above) ship
+  undetected: every existing `interaction.py` unit test uses hand-
+  picked, self-consistent Rsun-scale separations, so none of them
+  could have caught a units mismatch at the `population.py` boundary;
+  it was only found by manually running the script. Closed by
+  `tests/test_paper1_pipeline_regression.py`: a numeric regression pin
+  (population summary stats, RLOF-outcome-distribution counts, and a
+  per-timestep trajectory) for a `standard_interaction` run at
+  Paper-1-relevant scale (`mcut=8`, `pmin=1.0`, matching
+  `configs/paper1_basic_experiment.yml`), plus a smoke test that loads
+  `scripts/run_paper1_experiment.py`'s own functions directly and
+  confirms an RLOF-classifier prescription produces non-zero
+  `L_X`/`Q_H` and that both figure files are actually written -- the
+  specific symptom the units bug produced (all-zero `L_X`/`Q_H` via
+  near-total `IMMEDIATE_MERGER`) is exactly what would fail first if
+  that conversion were silently removed again.
 
 Still open:
 
@@ -399,3 +467,37 @@ Still open:
   named in the task brief as a downstream consequence, not required
   for this task. No interface stub exists yet; left as a named future
   extension point per the task's own scope note.
+- **Post-SN secondary Roche-lobe overflow not modelled (found
+  2026-08-24, see Section 6's "Residual, understood degeneracy" note
+  above)** -- Phase 0's RLOF classifier only checks pre-SN interaction
+  between two still-evolving stars (`nturn==0`), matching HTP02's own
+  CE-eligible donor list. Because `generate_population` always enforces
+  `m2 <= m1`, and `STABLE_MASS_TRANSFER` requires the donor to be the
+  *lighter* star, that channel's donor is always `m2` -- whose own
+  pre-SN evolutionary timescale is always far longer than `m1`'s
+  (the only star whose SN Realta's `turnoff_time` tracks), so `m1`
+  has essentially always already exploded before this pre-SN channel
+  becomes reachable. This makes `STABLE_MASS_TRANSFER`, and by
+  extension `interaction_boost`, structurally unable to fire for any
+  realistic massive-star binary in the current design -- confirmed,
+  not just suspected: zero of 51 `STABLE_MASS_TRANSFER`-classified
+  binaries in the Paper 1 config ever got processed, across the whole
+  100 Myr run.
+
+  **This needs to be implemented properly once work moves to mass
+  scales and timescales where it is the relevant physics**: the
+  astrophysically dominant real HMXB-formation channel is the
+  secondary's *own*, later Roche-lobe overflow onto the by-then-compact
+  primary (Case B/C mass transfer onto a neutron star/black hole,
+  wind-accretion vs. RLOF) -- not pre-SN mass transfer between two
+  still-live stars. That needs a genuinely new channel: donor = the
+  still-evolving secondary, companion = a compact remnant (not another
+  main-sequence/HG star), gated on `nturn==1` rather than `nturn==0`,
+  with its own Roche-lobe/accretion treatment (a compact object has no
+  stellar radius to overflow *from*, and accretion onto it is a
+  different physical regime from CE onto a live companion). Not
+  attempted this session -- deliberately out of scope for the pre-SN
+  classifier work done here, and only worth building when a study's
+  mass range/timescale actually needs it (e.g. lower-mass secondaries
+  over longer baselines, where this channel would dominate over what's
+  modelled today).
