@@ -27,6 +27,12 @@ dev = [
     "mypy",
     "pre-commit",
 ]
+# Optional -- only needed for the notebook and
+# scripts/run_paper1_experiment.py; the package itself has no plotting
+# dependency.
+plots = [
+    "matplotlib",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/realta"]

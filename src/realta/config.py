@@ -6,6 +6,61 @@ from dataclasses import dataclass
 
 import yaml
 
+# Paper 1 binary-interaction/merger prescriptions -- see
+# docs/science/paper1-binary-interaction-proposal.md for the full
+# rationale. None of this is derived from Power et al. (2009/2013);
+# it is a new, Realta-specific parameterization layered on the existing
+# floss/fsur gate, reviewed and accepted 2026-08-24. "non_interacting"
+# is the default and reproduces the pre-existing baseline exactly.
+BINARY_PRESCRIPTIONS = (
+    "single",
+    "non_interacting",
+    "standard_interaction",
+    "enhanced_interaction",
+    "enhanced_mergers",
+)
+
+# Illustrative, not-paper-derived defaults implied by each prescription
+# for the parameters below, when the parameter itself is left
+# unspecified (None) in the config. A prescription not listed for a
+# given parameter leaves that parameter at its neutral (no-effect)
+# value.
+#
+# Reconciled with the physics-based RLOF classifier (Hurley/Tout et al.
+# -- see binaries/interaction.py, docs/science/rlof-ce-classifier-
+# proposal.md "Decision 3") on 2026-08-24: standard_interaction/
+# enhanced_interaction/enhanced_mergers now turn on
+# use_rlof_classifier=True and drive their behaviour through real
+# Roche-lobe physics rather than purely through interaction_boost/
+# p_merge alone. This is a genuine scientific-behaviour change for
+# these three prescriptions specifically (NOT for "single" or
+# "non_interacting", which are unaffected -- use_rlof_classifier still
+# defaults to False for those, so the pinned baseline is untouched) --
+# see docs/provenance.md Section 6 for the old-vs-new pinned values and
+# the explicit rationale, per the brief's "never disguise a scientific
+# change as a refactor" principle. `p_merge` is deliberately NOT set
+# for enhanced_mergers any more (was 0.2/10.0/0.5) -- the real
+# classifier's IMMEDIATE_MERGER outcome, driven by a lowered
+# `q_crit_ms`, replaces it as that prescription's merger driver; the
+# formation-time p_merge/p_merge_max_period/f_merge channel remains
+# fully available as an independent, explicit override for anyone who
+# wants to layer both.
+_PRESCRIPTION_DEFAULTS: dict[str, dict[str, float | bool]] = {
+    "standard_interaction": {"interaction_boost": 1.5, "use_rlof_classifier": True},
+    "enhanced_interaction": {"interaction_boost": 3.0, "use_rlof_classifier": True},
+    "enhanced_mergers": {
+        # Lower than HTP02's own fiducial q_crit_ms=0.695 (see
+        # binaries/interaction.py::Q_CRIT_MS) -- more RLOF-ing systems
+        # are classified as dynamically-unstable mergers rather than
+        # stable mass transfer. NOT paper-derived; an illustrative,
+        # named, revisable choice (same status as Q_CRIT_MS itself,
+        # which the task's own brief flags as uncertain/literature-
+        # varying), not a new independent free parameter.
+        "q_crit_ms": 0.4,
+        "use_rlof_classifier": True,
+    },
+}
+
 
 @dataclass
 class SimulationConfig:
@@ -46,6 +101,76 @@ class SimulationConfig:
     # Realta instead re-draws per run, so re-run with a different
     # `fsur` rather than rescaling `lumx_tot`/`nphot_tot` externally.
     fsur: float = 0.5
+
+    # Paper 1 binary-interaction/merger prescription -- see
+    # docs/science/paper1-binary-interaction-proposal.md. One of
+    # BINARY_PRESCRIPTIONS above. "non_interacting" (default)
+    # reproduces the pre-existing floss/fsur-only baseline exactly.
+    # "single" additionally suppresses binary formation entirely (no
+    # companion, no period, no HMXB channel at all).
+    binary_prescription: str = "non_interacting"
+
+    # interaction_boost: multiplicative boost on fsur at HMXB
+    # activation (fsur_eff = min(1, fsur * interaction_boost)). If
+    # None, resolved from binary_prescription's illustrative default
+    # (1.0 -- no boost -- if the prescription doesn't specify one).
+    # NOT paper-derived; see the proposal doc.
+    interaction_boost: float | None = None
+
+    # Pre-SN merger channel (only reachable when binary_prescription
+    # implies nonzero p_merge, i.e. "enhanced_mergers", or when set
+    # explicitly). A binary with period < p_merge_max_period is merged
+    # with probability p_merge at formation; f_merge is the fraction of
+    # m2 retained by the merged star. If None, each resolves from
+    # binary_prescription's illustrative default (0.0 -- no mergers --
+    # if unspecified). NOT paper-derived; see the proposal doc.
+    p_merge: float | None = None
+    p_merge_max_period: float | None = None
+    f_merge: float | None = None
+
+    # Physics-based MS Roche-lobe-overflow classifier (Hurley et al.
+    # 2000/Hurley, Tout & Pols 2002 -- see
+    # docs/science/rlof-ce-classifier-proposal.md and
+    # binaries/interaction.py). If None, resolved from
+    # binary_prescription: True for standard_interaction/
+    # enhanced_interaction/enhanced_mergers, False (the existing
+    # floss/fsur/interaction_boost-only baseline, exactly preserved)
+    # for every other prescription -- see _PRESCRIPTION_DEFAULTS above
+    # for the full reconciliation rationale and docs/provenance.md
+    # Section 6 for what changed. When True, this adds a new MS-RLOF
+    # event (stable mass transfer or immediate merger) to evolve(),
+    # AND -- since this reconciliation -- interaction_boost is only
+    # applied to binaries whose RLOF outcome was stable mass transfer,
+    # not unconditionally to every surviving binary as before. Requires
+    # imetal=2 or 3 (Z=0.008 or 0.02) -- the underlying Hurley/Tout
+    # formulae are undefined at Z=0 (imetal=1); a run with
+    # use_rlof_classifier=True and imetal=1 logs a warning and skips
+    # RLOF classification entirely rather than crashing.
+    use_rlof_classifier: bool | None = None
+
+    # Critical mass ratio (q1 = M_donor/M_companion) above which a
+    # Roche-lobe-overflowing MS donor merges dynamically rather than
+    # transferring mass stably (Hurley, Tout & Pols 2002, Sec. 2.6.4).
+    # See binaries/interaction.py::Q_CRIT_MS for the caveat that this
+    # value is stated there specifically for deeply-convective donors
+    # and is extended here to radiative MS donors as a named
+    # simplification. If None, resolved from binary_prescription: 0.4
+    # (lower, more mergers) for enhanced_mergers, 0.695 (HTP02's own
+    # fiducial value) otherwise.
+    q_crit_ms: float | None = None
+
+    # Common-envelope efficiency (alpha_CE) and binding-energy
+    # parameter (lambda_CE), HTP02 eqs. 69-73 -- resolves a
+    # COMMON_ENVELOPE classification into survive-vs-merge and the new
+    # orbit (binaries/interaction.py::apply_common_envelope). See that
+    # module's ALPHA_CE/LAMBDA_CE constants for the Zuo & Li (2014)
+    # literature basis; both are physically uncertain enough to warrant
+    # being overridable, not buried, matching the q_crit_ms pattern.
+    # If None, resolved to those module defaults (0.9, 0.5) regardless
+    # of binary_prescription -- unlike q_crit_ms, no prescription
+    # currently varies these.
+    alpha_ce: float | None = None
+    lambda_ce: float | None = None
 
     # Metallicity: 1=Z=0, 2=Z=0.008, 3=Z=0.02
     imetal: int = 2
@@ -92,6 +217,55 @@ class SimulationConfig:
                         "from a YAML file, check for scientific notation "
                         "without an explicit sign (use 1.0e+33, not 1.0e33)."
                     ) from exc
+
+        if self.binary_prescription not in BINARY_PRESCRIPTIONS:
+            raise ValueError(
+                f"binary_prescription must be one of {BINARY_PRESCRIPTIONS}, "
+                f"got {self.binary_prescription!r}"
+            )
+        defaults = _PRESCRIPTION_DEFAULTS.get(self.binary_prescription, {})
+        if self.interaction_boost is None:
+            self.interaction_boost = defaults.get("interaction_boost", 1.0)
+        if self.p_merge is None:
+            self.p_merge = defaults.get("p_merge", 0.0)
+        if self.p_merge_max_period is None:
+            self.p_merge_max_period = defaults.get("p_merge_max_period", 0.0)
+        if self.f_merge is None:
+            self.f_merge = defaults.get("f_merge", 0.0)
+        if self.use_rlof_classifier is None:
+            self.use_rlof_classifier = defaults.get("use_rlof_classifier", False)
+        if self.q_crit_ms is None:
+            self.q_crit_ms = defaults.get("q_crit_ms", 0.695)
+        # Local import: realta.binaries's __init__ imports
+        # BinaryPopulation, which imports this module -- a circular
+        # import at module-load time if imported at the top of this
+        # file instead. Deferred to here (runtime, not import time),
+        # by which point both modules are already fully initialized.
+        from realta.binaries.interaction import ALPHA_CE, LAMBDA_CE
+
+        if self.alpha_ce is None:
+            self.alpha_ce = defaults.get("alpha_ce", ALPHA_CE)
+        if self.lambda_ce is None:
+            self.lambda_ce = defaults.get("lambda_ce", LAMBDA_CE)
+
+        if self.interaction_boost < 0.0:
+            raise ValueError(
+                f"interaction_boost must be >= 0, got {self.interaction_boost}"
+            )
+        if not 0.0 <= self.p_merge <= 1.0:
+            raise ValueError(f"p_merge must be in [0, 1], got {self.p_merge}")
+        if self.q_crit_ms <= 0.0:
+            raise ValueError(f"q_crit_ms must be > 0, got {self.q_crit_ms}")
+        if self.alpha_ce <= 0.0:
+            raise ValueError(f"alpha_ce must be > 0, got {self.alpha_ce}")
+        if self.lambda_ce <= 0.0:
+            raise ValueError(f"lambda_ce must be > 0, got {self.lambda_ce}")
+        if self.p_merge_max_period < 0.0:
+            raise ValueError(
+                f"p_merge_max_period must be >= 0, got {self.p_merge_max_period}"
+            )
+        if not 0.0 <= self.f_merge <= 1.0:
+            raise ValueError(f"f_merge must be in [0, 1], got {self.f_merge}")
 
         if not 0.0 <= self.fsur <= 1.0:
             raise ValueError(f"fsur must be in [0, 1], got {self.fsur}")

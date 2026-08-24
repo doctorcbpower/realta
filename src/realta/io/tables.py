@@ -294,6 +294,108 @@ class MSLuminosityTable(DataTable):
         return fiducial_lbol * (total_mass_msun / self.FIDUCIAL_CLUSTER_MASS_MSUN)
 
 
+class UVLuminosityTable(DataTable):
+    """Population-total far-UV (GALEX FUV, ~1528 A) luminosity vs time.
+
+    Paper 1's L_UV(t) observable (docs/science/research-programme.md,
+    Figs. 1-2) -- like `MSLuminosityTable`, this is this session's own
+    addition, not part of either Power et al. paper. Source: FSPS,
+    Kroupa IMF, instantaneous-burst single stellar population, GALEX
+    FUV band. Generation script: scripts/generate_fuv_luminosities.py
+    (band-choice rationale and the m_AB -> nu*L_nu conversion are
+    documented there; band decision reviewed in
+    docs/science/paper1-binary-interaction-proposal.md).
+
+    Same fiducial-mass-then-rescale convention as `MSLuminosityTable`:
+    tabulated values are baked to FIDUCIAL_CLUSTER_MASS_MSUN (1e6 Msun),
+    and `get_luv()` rescales linearly to the actual population's
+    `total_mass_msun`. Same domain-of-validity note applies (0.1-100
+    Myr; no extrapolation; imetal=1 uses FSPS's lowest available
+    metallicity as a documented Z=0 proxy).
+
+    The `fuv_lbol_z*.dat` data files (generated via FSPS + SPS_HOME)
+    now exist in `src/realta/data/` -- see docs/provenance.md Section
+    7. This class still degrades gracefully exactly like
+    `MSLuminosityTable` does for a missing file (e.g. a custom
+    `data_dir` that doesn't have them): `get_luv()` returns 0.0 rather
+    than raising.
+    """
+
+    METAL_FILES: ClassVar[dict[int, str]] = {
+        1: "fuv_lbol_z0.dat",
+        2: "fuv_lbol_z8e-3.dat",
+        3: "fuv_lbol_z2e-2.dat",
+    }
+
+    # Must match scripts/generate_fuv_luminosities.py's CLUSTER_MASS_MSUN.
+    FIDUCIAL_CLUSTER_MASS_MSUN = 1.0e6
+
+    def __init__(self, imetal: int = 2, data_dir: str | None = None):
+        super().__init__(data_dir)
+        self.imetal = imetal
+        self.log_age = np.array([])
+        self.log_luv = np.array([])
+        self.load()
+
+    def load(self):
+        filename = self.METAL_FILES.get(self.imetal, self.METAL_FILES[2])
+        filepath = self.data_dir / filename
+
+        if not filepath.exists():
+            logger.warning(
+                f"UV luminosity data file {filepath} not found. "
+                "get_luv() will return 0.0 for all ages -- run "
+                "scripts/generate_fuv_luminosities.py to generate it "
+                "(requires FSPS + SPS_HOME)."
+            )
+            return
+
+        try:
+            with open(filepath, "r") as f:
+                lines = f.readlines()
+
+            data_lines = lines[3:]
+            ages = []
+            luvs = []
+
+            for line in data_lines:
+                if line.strip() and not line.startswith("#"):
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        ages.append(float(parts[0]))
+                        luvs.append(float(parts[1]))
+
+            self.log_age = np.log10(np.array(ages))
+            self.log_luv = np.array(luvs)
+            self.loaded = True
+        except (FileNotFoundError, ValueError, IndexError) as e:
+            logger.error(f"Error loading UV luminosity data: {e}")
+
+    def get_luv(self, age_myr: float, total_mass_msun: float) -> float:
+        """Total population far-UV luminosity at a given age, erg/s.
+
+        Same rescaling/domain-of-validity behaviour as
+        `MSLuminosityTable.get_lbol()` -- see that method's docstring.
+        """
+        if not self.loaded or len(self.log_age) < 2 or age_myr <= 0.0:
+            return 0.0
+
+        lage = np.log10(age_myr)
+        if lage < self.log_age[0] or lage > self.log_age[-1]:
+            return 0.0
+
+        raw_idx = int(np.searchsorted(self.log_age, lage, side="right") - 1)
+        idx = max(0, min(raw_idx, len(self.log_age) - 2))
+
+        a = (self.log_luv[idx + 1] - self.log_luv[idx]) / (
+            self.log_age[idx + 1] - self.log_age[idx]
+        )
+        b = self.log_luv[idx] - a * self.log_age[idx]
+        log_luv = a * lage + b
+        fiducial_luv = 10.0**log_luv
+        return fiducial_luv * (total_mass_msun / self.FIDUCIAL_CLUSTER_MASS_MSUN)
+
+
 class IonizingPhotonTable(DataTable):
     """Ionizing photon data table."""
 
