@@ -151,24 +151,70 @@ uses the global default, is unaffected) gives a real, non-degenerate
 mix of RLOF outcomes. See that config file's own comment for the
 verification detail.
 
-**Residual, understood degeneracy**: `standard_interaction` and
-`enhanced_interaction` (`interaction_boost=1.5` vs `3.0`) still
-produce visually indistinguishable Figure 1/2 curves in this specific
-config+seed -- expected, since `interaction_boost` only affects
-binaries the classifier found underwent `STABLE_MASS_TRANSFER`
-(Section 6's reconciliation table), and `interaction_boost` itself
-doesn't change *which* binaries get that outcome, only their `fsur`
-once they do. Confirmed directly: `enhanced_mergers`'s lower
-`q_crit_ms=0.4` also currently produces an *identical* RLOF-outcome
-distribution to the `q_crit_ms=0.695` default for this config+seed --
-checked directly by re-running `find_rlof_onset` at both thresholds
-for every generated binary; zero outcomes differ. This is the already-
-documented `find_rlof_onset` emergent property (Section 10 above): the
-automatically-selected donor is almost always the more massive star
-(`q1 > 1`), already far above either threshold, so lowering
-`q_crit_ms` from 0.695 to 0.4 has no binaries left to reclassify in
-this config. Not a new bug -- a further consequence of the existing,
-tested finding, now visible in the full pipeline's output.
+**Residual, understood degeneracy, root cause found (2026-08-24)**:
+`standard_interaction`/`enhanced_interaction`/`enhanced_mergers`
+produce bit-identical Figure 1/2 output in this config -- confirmed by
+diffing their `.tevol.dat` files directly (zero differences across all
+201 timesteps). Two separate causes, both now understood as expected
+physics, not bugs:
+
+1. `enhanced_mergers`'s lower `q_crit_ms=0.4` produces an *identical*
+   RLOF-outcome distribution to the `q_crit_ms=0.695` default --
+   checked directly by re-running `find_rlof_onset` at both thresholds
+   for every generated binary; zero outcomes differ. This is the
+   already-documented `find_rlof_onset` emergent property (Section 10
+   above): the automatically-selected donor is almost always the more
+   massive star (`q1 > 1`), already far above either threshold, so
+   lowering `q_crit_ms` has no binaries left to reclassify here.
+
+2. `interaction_boost` (`standard_interaction=1.5` vs
+   `enhanced_interaction=3.0`) never has anything to act on: it only
+   applies to binaries the classifier found underwent
+   `STABLE_MASS_TRANSFER`, and **`STABLE_MASS_TRANSFER` cannot fire at
+   all in the current design, for any config, not just this one**.
+   Traced this precisely (all 51 `STABLE_MASS_TRANSFER`-classified
+   binaries in this run, e.g. `m1=54.0, m2=2.6 Msun`): `generate_population`
+   always enforces `m2 <= m1`, and `STABLE_MASS_TRANSFER` requires
+   `q1 = donor/companion < q_crit < 1`, so the stable-MT donor is
+   *always* `m2`, the lighter star, by construction. But Realta only
+   tracks one explosion clock (`turnoff_time`), computed from `m1`'s
+   own (Schaerer) lifetime -- and `m1`, being far more massive, always
+   explodes first (e.g. `turnoff_time=4.4 Myr` for that 54 Msun
+   primary vs. `donor_tbgb=480 Myr` for its 2.6 Msun companion's own
+   Hurley/Tout MS+HG duration). `nturn` flips to 1 long before the
+   donor's own predicted `rlof_time`, and Phase 0 requires
+   `nturn==0`, so the event is permanently gated out.
+
+   This is *not* the two lifetime prescriptions disagreeing with each
+   other for a given star -- directly compared Schaerer vs. Hurley/
+   Tout `t_bgb` across 8-100 Msun at Z=0.008 and they agree to within
+   ~5% throughout (ratio 0.95-1.04, and Hurley/Tout is even slightly
+   *longer* above ~80 Msun). It is a structural/physical fact about
+   the mass hierarchy: pre-SN "stable mass transfer with the lighter
+   star as donor" requires the *lighter* star to evolve off the MS on
+   its own (hundred-Myr-scale) timescale, which is always far longer
+   than the *heavier* primary's own (few-Myr-scale) pre-SN lifetime --
+   so the primary has essentially always already exploded before this
+   channel could ever become physically reachable. `IMMEDIATE_MERGER`/
+   `COMMON_ENVELOPE` don't have this problem: their donor is (per the
+   same emergent property) typically `m1` itself, so both the RLOF
+   clock and the SN clock are the same star's, which agree to ~5% as
+   shown above.
+
+   The astrophysically important, missing piece this exposes is not a
+   fix to the pre-SN classifier, but a **structurally different,
+   not-yet-modelled channel**: the secondary star's *own* later
+   Roche-lobe overflow onto the now-compact primary (Case B/C mass
+   transfer onto a compact object, wind-accretion vs. RLOF) -- the
+   actual dominant real-world HMXB-formation pathway once the primary
+   has already collapsed. Phase 0 was scoped this session to pre-SN
+   interaction between two still-evolving stars only (`nturn==0`,
+   matching HTP02's own CE-eligible donor list); a post-SN
+   secondary-RLOF channel (`nturn==1`, donor = the still-evolving
+   secondary, companion = a compact remnant) is new scope, deliberately
+   not attempted here, and belongs on the roadmap for whenever the
+   mass/timescale regime it addresses is actually the one under study
+   -- see the "Known gaps" note below.
 
 ## 7. Fig. 1/2 UV observable (Paper 1, not in either paper's original code)
 
@@ -399,3 +445,37 @@ Still open:
   named in the task brief as a downstream consequence, not required
   for this task. No interface stub exists yet; left as a named future
   extension point per the task's own scope note.
+- **Post-SN secondary Roche-lobe overflow not modelled (found
+  2026-08-24, see Section 6's "Residual, understood degeneracy" note
+  above)** -- Phase 0's RLOF classifier only checks pre-SN interaction
+  between two still-evolving stars (`nturn==0`), matching HTP02's own
+  CE-eligible donor list. Because `generate_population` always enforces
+  `m2 <= m1`, and `STABLE_MASS_TRANSFER` requires the donor to be the
+  *lighter* star, that channel's donor is always `m2` -- whose own
+  pre-SN evolutionary timescale is always far longer than `m1`'s
+  (the only star whose SN Realta's `turnoff_time` tracks), so `m1`
+  has essentially always already exploded before this pre-SN channel
+  becomes reachable. This makes `STABLE_MASS_TRANSFER`, and by
+  extension `interaction_boost`, structurally unable to fire for any
+  realistic massive-star binary in the current design -- confirmed,
+  not just suspected: zero of 51 `STABLE_MASS_TRANSFER`-classified
+  binaries in the Paper 1 config ever got processed, across the whole
+  100 Myr run.
+
+  **This needs to be implemented properly once work moves to mass
+  scales and timescales where it is the relevant physics**: the
+  astrophysically dominant real HMXB-formation channel is the
+  secondary's *own*, later Roche-lobe overflow onto the by-then-compact
+  primary (Case B/C mass transfer onto a neutron star/black hole,
+  wind-accretion vs. RLOF) -- not pre-SN mass transfer between two
+  still-live stars. That needs a genuinely new channel: donor = the
+  still-evolving secondary, companion = a compact remnant (not another
+  main-sequence/HG star), gated on `nturn==1` rather than `nturn==0`,
+  with its own Roche-lobe/accretion treatment (a compact object has no
+  stellar radius to overflow *from*, and accretion onto it is a
+  different physical regime from CE onto a live companion). Not
+  attempted this session -- deliberately out of scope for the pre-SN
+  classifier work done here, and only worth building when a study's
+  mass range/timescale actually needs it (e.g. lower-mass secondaries
+  over longer baselines, where this channel would dominate over what's
+  modelled today).
