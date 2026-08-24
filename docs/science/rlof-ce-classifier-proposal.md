@@ -650,3 +650,42 @@ companion. See `tests/test_ce_energy_balance.py` and
 `tests/test_rlof_wiring.py`'s new CE-wiring tests, both sensitivity-
 checked (deliberate `alpha_ce`/`lambda_ce` perturbation confirmed to
 change the result in the expected direction).
+
+### Units bug, found and fixed (2026-08-24): self.a is AU, this module assumed Rsun
+
+Found by running `scripts/run_paper1_experiment.py` end-to-end for the
+first time -- not by any unit test, since every test for this module
+was written with hand-picked, internally-consistent Rsun-scale
+separations. `BinaryPopulation.self.a` (`AFAC`/`PFAC`) is in **AU**:
+confirmed via an Earth-Sun sanity check (`AFAC`'s formula gives
+`a~=0.99` for `M=1 Msun, P=365.25 days`, only sensible as ~1 AU, and
+`PFAC=365.229126` is essentially a sidereal year in days -- these
+constants encode Kepler's third law in the standard AU/Msun/year
+convention, the same one Power et al.'s original Fortran uses). But
+every stellar-radius function this session added returns **Rsun**, and
+`roche_lobe_radius`/`classify_rlof`/`find_rlof_onset`/
+`apply_stable_mass_transfer`/`apply_common_envelope` all compare
+`separation` directly against those Rsun-scale radii, with no
+conversion. Effect: every donor looked ~215x closer to its Roche lobe
+than it really is, so the actual Paper 1 config produced
+`IMMEDIATE_MERGER` for ~100% of massive binaries in every RLOF-
+classifier-enabled prescription, making Figure 2 completely
+degenerate.
+
+Fixed in `binaries/population.py`: a new `RSUN_PER_AU = 215.032`
+constant (1 au = 1.495978707e11 m, IAU 2012; R_sun = 6.957e8 m, IAU
+2015 nominal), applied at every call from `population.py` into
+`interaction.py` (`self.a[i] * RSUN_PER_AU` going in, `new_a_rsun /
+RSUN_PER_AU` coming back out). `self.a` itself stays in AU everywhere
+else -- the pre-existing SN1 mass-loss orbit-widening code and every
+already-pinned regression value are untouched. See
+`docs/provenance.md`'s Section 10 for the full writeup, including the
+three `tests/test_rlof_wiring.py` tests that needed their hand-
+constructed `pop.a` values converted to AU to match.
+
+A second, independent finding surfaced by the same end-to-end run:
+even with the units fixed, `configs/paper1_basic_experiment.yml`'s
+inherited `pmin=0.1` days puts most massive binaries in contact at
+birth (Kepler's third law again) -- raised to `pmin=1.0` day for that
+config specifically (not the global default), per the "Paper 1 config"
+note in `docs/provenance.md` Section 6.
