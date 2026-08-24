@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 import numpy as np
+from scipy.stats import truncnorm
 
 from realta.binaries.interaction import (
     RLOFOutcome,
@@ -111,7 +112,7 @@ class BinaryPopulation:
         # against this specific run's ntot/mmin/mmax choice.
         self.total_mass_msun: float = 0.0
 
-        self.imf = get_imf(config.imf_type)
+        self.imf = get_imf(config.imf_type, slope=config.imf_slope)
         self.np_rng = np.random.default_rng(config.iseed)
 
         self.lifetime_table = LifetimeTable(config.imetal, config.data_dir)
@@ -140,33 +141,85 @@ class BinaryPopulation:
         m1 = raw_masses[mask_massive]
         n_massive = len(m1)
 
+        # Primordial binary fraction (A1, docs/science/paper1-detailed-
+        # work-breakdown.md): binary_fraction=1.0 (default) reproduces
+        # the pre-existing Power et al. (2009) baseline exactly (every
+        # M >= mcut star paired, Sec. 2.1) -- the RNG draw below is
+        # skipped entirely in that case, not drawn-and-discarded, so
+        # the RNG stream is untouched by default (same pattern as
+        # p_merge==0 below). `fsur` is NOT a formation-time filter: it
+        # is applied once, later, as the HMXB activation probability at
+        # primary supernova (see evolve()).
+        #
         # "single" prescription (see
-        # docs/science/paper1-binary-interaction-proposal.md): no
-        # companion is assigned to any massive star, so no HMXB channel
-        # can ever open. Every other prescription assigns a companion
-        # to 100% of M >= mcut stars, unchanged from Power et al.
-        # (2009), Sec. 2.1.
+        # docs/science/paper1-binary-interaction-proposal.md): forces
+        # no companion for any massive star (has_companion all False),
+        # regardless of any separately-configured binary_fraction --
+        # unlike every other prescription, m1 stays fully populated
+        # (not emptied to n_massive=0, as this prescription used to do
+        # before A3). Emptying the array was a reasonable shortcut
+        # while the only things computed from m1 were L_X/HMXB-related
+        # (correctly zero for single stars either way), but A3's
+        # massive-star Q_H(t) also reads m1/nturn to know which
+        # massive stars exist -- with an empty array it would (and, in
+        # an intervening version of this code, briefly did) see none
+        # at all and silently report Q_H=0 for single-star populations,
+        # which is physically wrong: massive stars ionize regardless of
+        # binarity. Migrating "single" onto the same has_companion
+        # mechanism A1 already built fixes this for free -- L_X/HMXB
+        # activation stay exactly zero (m2=0 blocks that unconditionally,
+        # same as before), but L_bol/Q_H tracking now works correctly.
         if cfg.binary_prescription == "single":
-            n_massive = 0
-            m1 = np.array([])
-
-        # Primordial binary fraction is 100% for stars above mcut
-        # (Power et al. 2009, Sec. 2.1) -- every massive star gets a
-        # companion and a period. `fsur` is NOT a formation-time
-        # filter: it is applied once, later, as the HMXB activation
-        # probability at primary supernova (see evolve()).
-        log_pmin, log_pmax = np.log(cfg.pmin), np.log(cfg.pmax)
-        periods = np.exp(
-            log_pmin + (log_pmax - log_pmin) * self.np_rng.random(n_massive)
-        )
-
-        # Vectorized companion mass assignment
-        if cfg.mcomp < 0:
-            m2 = cfg.mmin + (m1 - cfg.mmin) * self.np_rng.random(n_massive)
+            has_companion = np.zeros(n_massive, dtype=bool)
+        elif cfg.binary_fraction >= 1.0:
+            has_companion = np.ones(n_massive, dtype=bool)
         else:
-            m2 = cfg.mcomp + (m1 - cfg.mcomp) * self.np_rng.random(n_massive)
+            has_companion = self.np_rng.random(n_massive) < cfg.binary_fraction
 
-        m2 = np.minimum(m2, m1)
+        # Period distribution: "log_uniform" (default, unchanged
+        # baseline) or "log_normal" (generic, pmin/pmax-derived
+        # parameters -- see config.py::SimulationConfig.period_distribution
+        # for the exact convention and why it's not literature-sourced).
+        if cfg.period_distribution == "log_normal":
+            log10_pmin, log10_pmax = np.log10(cfg.pmin), np.log10(cfg.pmax)
+            mu = 0.5 * (log10_pmin + log10_pmax)
+            sigma = (log10_pmax - log10_pmin) / 6.0
+            a_trunc = (log10_pmin - mu) / sigma
+            b_trunc = (log10_pmax - mu) / sigma
+            log10_periods = truncnorm.rvs(
+                a_trunc,
+                b_trunc,
+                loc=mu,
+                scale=sigma,
+                size=n_massive,
+                random_state=self.np_rng,
+            )
+            periods = 10.0**log10_periods
+        else:  # "log_uniform"
+            log_pmin, log_pmax = np.log(cfg.pmin), np.log(cfg.pmax)
+            periods = np.exp(
+                log_pmin + (log_pmax - log_pmin) * self.np_rng.random(n_massive)
+            )
+
+        # Mass-ratio distribution: "uniform" (default, unchanged
+        # baseline) or "flat_q" (flat in q = m2/m1 rather than in
+        # absolute companion mass -- see
+        # config.py::SimulationConfig.mass_ratio_distribution).
+        if cfg.mass_ratio_distribution == "flat_q":
+            m2 = m1 * self.np_rng.random(n_massive)
+        else:  # "uniform"
+            if cfg.mcomp < 0:
+                m2 = cfg.mmin + (m1 - cfg.mmin) * self.np_rng.random(n_massive)
+            else:
+                m2 = cfg.mcomp + (m1 - cfg.mcomp) * self.np_rng.random(n_massive)
+            m2 = np.minimum(m2, m1)
+
+        # Stars without a companion (has_companion=False) have no real
+        # orbit -- m2/period/a are placeholder zeros, not physical
+        # values, and are excluded from the RLOF classifier and the
+        # pre-SN merger channel below (both require a real companion).
+        m2 = np.where(has_companion, m2, 0.0)
+        periods = np.where(has_companion, periods, 0.0)
 
         # Pre-SN merger channel (enhanced_mergers prescription; inert
         # -- did_merge all False -- when config.p_merge == 0, which is
@@ -181,10 +234,14 @@ class BinaryPopulation:
         # enhanced_mergers -- skip the RNG draw entirely in that case
         # rather than drawing-and-discarding, so the RNG stream (and
         # therefore every pinned regression value) is untouched when
-        # the merger channel isn't in use.
+        # the merger channel isn't in use. `has_companion` additionally
+        # excludes no-companion stars (period=0 would otherwise trivially
+        # satisfy `periods < p_merge_max_period`).
         if cfg.p_merge > 0.0:
-            did_merge = (periods < cfg.p_merge_max_period) & (
-                self.np_rng.random(n_massive) < cfg.p_merge
+            did_merge = (
+                has_companion
+                & (periods < cfg.p_merge_max_period)
+                & (self.np_rng.random(n_massive) < cfg.p_merge)
             )
         else:
             did_merge = np.zeros(n_massive, dtype=bool)
@@ -249,8 +306,14 @@ class BinaryPopulation:
                 )
             else:
                 for i in range(n_massive):
-                    if self.did_merge[i]:
-                        continue  # already merged at formation, no companion
+                    if self.did_merge[i] or self.m2[i] <= 0.0:
+                        # Already merged at formation, or never had a
+                        # companion at all (A1's binary_fraction<1
+                        # placeholder m2=0 -- find_rlof_onset/
+                        # classify_rlof divide by companion_mass, which
+                        # would be a divide-by-zero/inf-q1 corruption
+                        # here, not a real RLOF-eligible system).
+                        continue
                     t_rlof, outcome, donor_is_star1 = find_rlof_onset(
                         self.m1[i],
                         self.m2[i],
