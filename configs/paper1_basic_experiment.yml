@@ -1,0 +1,70 @@
+# Paper 1 basic experiment (docs/science/research-programme.md,
+# "Basic experiment"): fixed IMF, sweep over binary_prescription.
+#
+# NOT a SimulationConfig file itself -- SimulationConfig.load_config()
+# expects a flat, single-prescription file (see config.py). This file
+# has its own small loader, scripts/run_paper1_experiment.py, which
+# builds one SimulationConfig per entry in `binary_prescriptions` from
+# `base` + that prescription, runs each, and produces Figs. 1-2. This
+# is deliberately not the general experiment-runner/parameter-sweep
+# engine from docs/science/development-roadmap.md item 17-18 (Phase 3,
+# for Paper 2) -- it is the smallest thing that makes this one
+# milestone's five-variant comparison a single reproducible invocation.
+#
+# `base` fields are exactly SimulationConfig fields (see config.py for
+# units/meaning of each) except binary_prescription itself, which is
+# supplied per-entry from `binary_prescriptions` below.
+
+base:
+  ntot: 100000
+  mmin: 0.1
+  mmax: 100.0
+  mcut: 8.0
+  tmax: 100.0
+  dt: 0.5
+  imf_type: 2 # Kroupa -- fixed IMF for this experiment, per the research programme
+  # pmin raised from the global config.py/config.yml default (0.1 days)
+  # to 1.0 day, for this experiment only. Found while running this
+  # experiment end-to-end (2026-08-24): at pmin=0.1, Kepler's third law
+  # (binaries/population.py::AFAC) puts most 8-100 Msun binaries'
+  # semi-major axes below the stars' own ZAMS radii -- born already in
+  # contact, merging near-instantly regardless of binary_prescription
+  # and making Figure 2's cross-prescription comparison degenerate.
+  # 1.0 day keeps the RLOF-classifier-eligible prescriptions from being
+  # dominated by that unphysical born-in-contact population while
+  # still producing plenty of genuine RLOF interactions (verified via
+  # a direct BinaryPopulation run: pmin=1.0 gives a real mix of
+  # DETACHED/STABLE_MASS_TRANSFER/IMMEDIATE_MERGER/PHASE_NOT_MODELLED
+  # outcomes, not one dominant bucket). See
+  # docs/science/rlof-ce-classifier-proposal.md's "Units bug" note for
+  # the AU/Rsun mismatch this was originally (and separately) traced
+  # to and fixed.
+  pmin: 1.0
+  pmax: 1000.0
+  mcomp: 0.5
+  # fsur=0.5, not 1.0: fsur_eff = min(1, fsur*interaction_boost), so at
+  # fsur=1.0 every interaction_boost >= 1 saturates to fsur_eff=1 and
+  # standard_interaction/enhanced_interaction become indistinguishable
+  # from non_interacting (confirmed by an actual run while building
+  # this config -- see docs/provenance.md Section 6). fsur=0.5 leaves
+  # room for the boost to actually separate the five variants.
+  fsur: 0.5
+  imetal: 2
+  lxmin: 33.0
+  lxmax: 38.0
+  lunit: 1.0e+33
+  xray_distribution: weibull
+  iseed: 42
+
+# Paper 1's five basic-experiment variants (research-programme.md).
+# See docs/science/paper1-binary-interaction-proposal.md for what each
+# one means quantitatively -- "standard_interaction",
+# "enhanced_interaction", and "enhanced_mergers" use illustrative,
+# not-paper-derived parameter defaults (interaction_boost/p_merge/etc.,
+# see config.py), flagged there and in docs/provenance.md Section 6.
+binary_prescriptions:
+  - single
+  - non_interacting
+  - standard_interaction
+  - enhanced_interaction
+  - enhanced_mergers
