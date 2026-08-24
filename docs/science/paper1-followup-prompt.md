@@ -1,5 +1,64 @@
 # Paper 1 follow-up prompt: from "figures render" to "the physics is right"
 
+**Update, 2026-08-25**: the RLOF-only version of this prompt's core
+ask is DONE -- `config.use_post_sn_rlof` (default `False`), a new
+"Phase 1.5" in `binaries/population.py::evolve` gated on `nturn==1`,
+using the same Eggleton Roche-lobe machinery already built for Phase 0.
+See `docs/provenance.md` Section 2 for the full writeup (confirmed
+genuinely additive on a realistic population: `lumx_tot` +29% at
+t=100 Myr with the channel on vs. off). Deliberately minimal scope,
+per this prompt's own item 1's proposal step -- see that writeup for
+exactly what was cut (no wind-accretion trigger, no consequence model
+for the secondary's mass/envelope or the compact primary's mass).
+
+**Update, 2026-08-25: wind-accretion physics is now implemented as
+standalone modules, but NOT yet wired into `evolve()`.** The user
+provided both source papers directly (El Mellah & Casse 2017,
+arXiv:1609.01532; Friend & Castor 1982, ApJ 261, 293) and a detailed
+spec. Both pasted and read section-by-section before implementing --
+see `stellar/cak_wind.py` (CAK wind mass-loss rate/velocity law) and
+`binaries/wind_capture.py` (BHL-style accretion rate + circularization
+radius), and `docs/provenance.md` Section 15 for the full writeup,
+including three real transcription/derivation errors caught and fixed
+during implementation (two memorized-constant errors in the Eddington-
+luminosity calculation, one velocity-law mismatch, all caught by direct
+numerical cross-checks against Friend & Castor's own Vela X-1 data
+before being accepted). The circularization-radius formula is the one
+piece NOT verified against either paper (neither gives a closed-form
+fit) -- flagged as the lowest-confidence part of this addition.
+
+Deliberately NOT wired into `BinaryPopulation.evolve()` yet -- built
+as standalone, independently-tested physics modules only, per the
+user's own "keep the prescription modular" framing. What's needed for
+that next step, not yet decided:
+- Does wind accretion replace, gate, or run alongside the existing
+  `fsur`/`use_post_sn_rlof` channels for a given binary?
+- How does `L_X` get computed from `Mdot_acc` -- a new
+  `eta*Mdot_acc*c^2`-style conversion (per Friend & Castor eq. 12-13),
+  or fed through the existing `xray_calc` luminosity-draw machinery?
+- Gating would be similar to the RLOF channel (`nturn==1`) but without
+  any Roche-lobe check -- just "secondary is MS-phase and above some
+  wind-relevant mass threshold" (`stellar/cak_wind.py`'s functions
+  need mass/luminosity/radius/alpha/Q/Gamma per donor -- luminosity
+  and radius are already available via
+  `main_sequence.ms_luminosity`/`ms_radius`; `alpha`/`Q`/`Gamma`
+  are the four CAK/Eddington shape parameters and would need sensible
+  defaults or new config fields, following the `Q_CRIT_MS`/`ALPHA_CE`
+  precedent of named, overridable constants).
+
+The original scoping text below (for what wind accretion would need,
+written before the papers were provided) is now superseded by the
+actual implementation above -- kept for the historical record of what
+was anticipated vs. what the papers actually gave.
+
+A future session should get the actual
+source text for Vink et al. (2001) (and whichever Bondi-Hoyle-
+Lyttleton reference is preferred) pasted and verified before
+implementing, the same way HTP02/Tout et al. (1997) were for this
+session's other additions.
+
+---
+
 A self-contained prompt for the next phase of Paper 1 work. Written so
 it can be pasted into a fresh session with no other context. It picks
 up after `docs/science/paper1-implementation-prompt.md`'s scope is
