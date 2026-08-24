@@ -26,14 +26,13 @@ docs/provenance.md Sections 4/6/7 for what each one is and isn't):
                X-ray-to-ionising-photon conversion
                (BinaryPopulation.NPHOT_PER_LUMX). Flagging this rather
                than inventing an unsourced accretion-UV correction.
-    Q_H(t)   = nphot_tot, the HMXB ionising-photon rate only (Power et
-               al. 2013 conversion, see provenance.md Section 3). No MS
-               ionising-photon contribution is included: the existing
-               notebook's MS ionising curve is an ad hoc Starburst99-
-               shaped placeholder, not backed by any table
-               (IonizingPhotonTable exists but estimates a different,
-               currently-unused quantity -- see its class docstring in
-               io/tables.py) -- not reused here for the same reason.
+    Q_H(t)   = qh_tot = qh_ms_tot + nphot_tot: the massive-star
+               population's own ionizing-photon output (A3, via
+               IonizingPhotonTable, previously unused -- see
+               ClusterSimulation._qh_ms_tot's docstring) plus nphot_tot
+               (the HMXB accretion-driven proxy, Power et al. 2013
+               conversion, see provenance.md Section 3). No longer
+               degenerate with L_X by construction.
     L_X(t)   = lumx_tot, summed active-HMXB X-ray luminosity.
 
 UVLuminosityTable's data files (src/realta/data/fuv_lbol_z*.dat) exist
@@ -55,7 +54,6 @@ import numpy as np
 import yaml
 
 from realta.config import SimulationConfig
-from realta.io.tables import MSLuminosityTable, UVLuminosityTable
 from realta.simulation.cluster import ClusterSimulation
 
 logger = logging.getLogger("realta")
@@ -113,18 +111,18 @@ def load_experiment_config(path: str | Path) -> tuple[dict, list[str]]:
 
 
 def run_variant(base: dict, prescription: str, output_dir: Path) -> dict:
+    """Run one prescription and read L_bol/L_UV/Q_H/L_X directly from
+    ClusterSimulation.run()'s own per-timestep output (A2/A3, docs/
+    science/paper1-detailed-work-breakdown.md) -- these used to be
+    recomputed here, independently of the run loop; now they're read
+    straight from `results`, so this script actually exercises the
+    real wiring rather than duplicating it.
+    """
     config = SimulationConfig(binary_prescription=prescription, **base)
     sim = ClusterSimulation(config)
     results = sim.run(output_dir=str(output_dir / prescription))
 
-    time = np.array([r["time"] for r in results])
-    lumx_tot = np.array([r["lumx_tot"] for r in results])
-    nphot_tot = np.array([r["nphot_tot"] for r in results])
-    total_mass_msun = sim.population.total_mass_msun
-
-    ms_table = MSLuminosityTable(imetal=config.imetal)
-    uv_table = UVLuminosityTable(imetal=config.imetal)
-    if not uv_table.loaded:
+    if not sim.uv_table.loaded:
         logger.warning(
             f"UVLuminosityTable did not load (imetal={config.imetal}) -- "
             "L_UV(t) will be 0.0 for all t, and Figure 2 (L_X/L_UV) will "
@@ -132,17 +130,14 @@ def run_variant(base: dict, prescription: str, output_dir: Path) -> dict:
             "place its output in src/realta/data/ to fix this."
         )
 
-    ms_lbol = np.array([ms_table.get_lbol(t, total_mass_msun) for t in time])
-    ms_luv = np.array([uv_table.get_luv(t, total_mass_msun) for t in time])
-
     return {
         "prescription": prescription,
         "label": PRESCRIPTION_LABELS.get(prescription, prescription),
-        "time": time,
-        "l_bol": ms_lbol + lumx_tot,
-        "l_uv": ms_luv,
-        "q_h": nphot_tot,
-        "l_x": lumx_tot,
+        "time": np.array([r["time"] for r in results]),
+        "l_bol": np.array([r["lbol_tot"] for r in results]),
+        "l_uv": np.array([r["luv_tot"] for r in results]),
+        "q_h": np.array([r["qh_tot"] for r in results]),
+        "l_x": np.array([r["lumx_tot"] for r in results]),
     }
 
 
