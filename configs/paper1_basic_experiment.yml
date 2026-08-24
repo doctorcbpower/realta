@@ -23,7 +23,23 @@ base:
   tmax: 100.0
   dt: 0.5
   imf_type: 2 # Kroupa -- fixed IMF for this experiment, per the research programme
-  pmin: 0.1
+  # pmin raised from the global config.py/config.yml default (0.1 days)
+  # to 1.0 day, for this experiment only. Found while running this
+  # experiment end-to-end (2026-08-24): at pmin=0.1, Kepler's third law
+  # (binaries/population.py::AFAC) puts most 8-100 Msun binaries'
+  # semi-major axes below the stars' own ZAMS radii -- born already in
+  # contact, merging near-instantly regardless of binary_prescription
+  # and making Figure 2's cross-prescription comparison degenerate.
+  # 1.0 day keeps the RLOF-classifier-eligible prescriptions from being
+  # dominated by that unphysical born-in-contact population while
+  # still producing plenty of genuine RLOF interactions (verified via
+  # a direct BinaryPopulation run: pmin=1.0 gives a real mix of
+  # DETACHED/STABLE_MASS_TRANSFER/IMMEDIATE_MERGER/PHASE_NOT_MODELLED
+  # outcomes, not one dominant bucket). See
+  # docs/science/rlof-ce-classifier-proposal.md's "Units bug" note for
+  # the AU/Rsun mismatch this was originally (and separately) traced
+  # to and fixed.
+  pmin: 1.0
   pmax: 1000.0
   mcomp: 0.5
   # fsur=0.5, not 1.0: fsur_eff = min(1, fsur*interaction_boost), so at

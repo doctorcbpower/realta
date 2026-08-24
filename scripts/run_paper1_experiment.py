@@ -36,15 +36,11 @@ docs/provenance.md Sections 4/6/7 for what each one is and isn't):
                io/tables.py) -- not reused here for the same reason.
     L_X(t)   = lumx_tot, summed active-HMXB X-ray luminosity.
 
-As of this writing UVLuminosityTable's data files
-(src/realta/data/fuv_lbol_z*.dat) do not exist yet (see
-docs/provenance.md Section 7) -- L_UV(t) and therefore Figure 2
-(L_X/L_UV) will be degenerate (L_UV = 0 everywhere) until
-scripts/generate_fuv_luminosities.py has been run and its output placed
-in src/realta/data/. This script still produces both figures using
-whatever UVLuminosityTable currently returns, and prints an explicit
-warning if the table didn't load, rather than silently producing a
-misleading Figure 2.
+UVLuminosityTable's data files (src/realta/data/fuv_lbol_z*.dat) exist
+and load correctly -- see docs/provenance.md Section 7. This script
+still prints an explicit warning if the table didn't load (e.g. a
+custom --output-dir/data_dir missing them), producing L_UV=0 and a
+degenerate Figure 2, rather than silently producing a misleading one.
 """
 
 from __future__ import annotations

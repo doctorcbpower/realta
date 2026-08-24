@@ -313,13 +313,12 @@ class UVLuminosityTable(DataTable):
     Myr; no extrapolation; imetal=1 uses FSPS's lowest available
     metallicity as a documented Z=0 proxy).
 
-    As of this writing the `fuv_lbol_z*.dat` data files this class
-    reads do not yet exist -- generating them requires FSPS + SPS_HOME,
-    which was not available where this class was added (see
-    docs/provenance.md Section 7). Until they are generated and placed
-    in `data/`, this class degrades gracefully exactly like
-    `MSLuminosityTable` does for a missing file: `get_luv()` returns
-    0.0 rather than raising.
+    The `fuv_lbol_z*.dat` data files (generated via FSPS + SPS_HOME)
+    now exist in `src/realta/data/` -- see docs/provenance.md Section
+    7. This class still degrades gracefully exactly like
+    `MSLuminosityTable` does for a missing file (e.g. a custom
+    `data_dir` that doesn't have them): `get_luv()` returns 0.0 rather
+    than raising.
     """
 
     METAL_FILES: ClassVar[dict[int, str]] = {

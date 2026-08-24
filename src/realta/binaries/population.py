@@ -38,6 +38,35 @@ class BinaryPopulation:
     PFAC = 365.229126
     AFAC = 0.0193852859
 
+    # `self.a` (from AFAC/PFAC above) is in AU, not Rsun -- confirmed by
+    # evaluating AFAC's own formula for an Earth-Sun-like case (M=1
+    # Msun, P=365.25 days): it returns a~=0.99, matching 1 AU, not 1
+    # Rsun (which would put the Earth inside the Sun). PFAC=365.229126
+    # itself is essentially the number of days in a sidereal year --
+    # i.e. these constants encode Kepler's third law in the standard
+    # P(yr)^2 = a(AU)^3/M(Msun) astronomical convention, the same one
+    # Power et al.'s original Fortran uses (see docs/provenance.md's
+    # semi-major-axis row for the ~1% precision-convention note on
+    # AFAC itself).
+    #
+    # binaries/interaction.py's RLOF/CE module (added this session) was
+    # built and unit-tested entirely with hand-picked Rsun-scale
+    # separations -- it compares `separation` directly against donor/
+    # companion radii from the Hurley/Tout stellar-radius fits, which
+    # are explicitly in Rsun. Passing `self.a` (AU) into it unconverted
+    # made every donor look ~215x closer to its Roche lobe than it
+    # really is -- a real bug found by running the full Paper 1
+    # pipeline end-to-end (see docs/provenance.md's "known gaps"/RLOF
+    # section): with the un-converted units, essentially every massive
+    # binary classified as IMMEDIATE_MERGER, regardless of period.
+    # RSUN_PER_AU converts at that boundary -- self.a itself STAYS in
+    # AU everywhere else (the SN1 mass-loss orbit-widening code below,
+    # and every existing pinned regression value, is untouched).
+    #
+    # 1 au = 1.495978707e11 m (IAU 2012 exact definition); R_sun =
+    # 6.957e8 m (IAU 2015 nominal solar radius) -> ratio = 215.032.
+    RSUN_PER_AU = 215.032
+
     # Converts total X-ray luminosity (in units of `lunit`) to an
     # ionising photon rate, using a model spectral shape (Power et al.
     # 2013): 6.2415e11 is erg->eV; 13.6 eV is the hydrogen ionisation
@@ -223,7 +252,11 @@ class BinaryPopulation:
                     if self.did_merge[i]:
                         continue  # already merged at formation, no companion
                     t_rlof, outcome, donor_is_star1 = find_rlof_onset(
-                        self.m1[i], self.m2[i], self.a[i], z, q_crit_ms=cfg.q_crit_ms
+                        self.m1[i],
+                        self.m2[i],
+                        self.a[i] * self.RSUN_PER_AU,
+                        z,
+                        q_crit_ms=cfg.q_crit_ms,
                     )
                     self.rlof_time[i] = t_rlof
                     self.rlof_outcome[i] = outcome
@@ -311,16 +344,21 @@ class BinaryPopulation:
                             donor_radius = main_sequence.hg_radius(
                                 donor_mass, z, self.rlof_time[i]
                             )
-                        new_donor, new_companion, new_a = apply_stable_mass_transfer(
-                            donor_mass, companion_mass, self.a[i], donor_radius
+                        new_donor, new_companion, new_a_rsun = (
+                            apply_stable_mass_transfer(
+                                donor_mass,
+                                companion_mass,
+                                self.a[i] * self.RSUN_PER_AU,
+                                donor_radius,
+                            )
                         )
                         if self.rlof_donor_is_star1[i]:
                             self.m1[i], self.m2[i] = new_donor, new_companion
                         else:
                             self.m2[i], self.m1[i] = new_donor, new_companion
-                        self.a[i] = new_a
+                        self.a[i] = new_a_rsun / self.RSUN_PER_AU
                         mtot = new_donor + new_companion
-                        self.period[i] = self.PFAC * np.sqrt((new_a**3) / mtot)
+                        self.period[i] = self.PFAC * np.sqrt((self.a[i] ** 3) / mtot)
                         # Both stars' lifetime clocks reset from tnow at
                         # their new masses -- the same full-reset
                         # simplification used for mergers above, not
@@ -340,11 +378,11 @@ class BinaryPopulation:
                             donor_mass, companion_mass = self.m1[i], self.m2[i]
                         else:
                             donor_mass, companion_mass = self.m2[i], self.m1[i]
-                        survives, new_donor, new_companion, new_a = (
+                        survives, new_donor, new_companion, new_a_rsun = (
                             apply_common_envelope(
                                 donor_mass,
                                 companion_mass,
-                                self.a[i],
+                                self.a[i] * self.RSUN_PER_AU,
                                 z,
                                 self.rlof_time[i],
                                 alpha_ce=self.config.alpha_ce,
@@ -360,9 +398,11 @@ class BinaryPopulation:
                                 self.m1[i], self.m2[i] = new_donor, new_companion
                             else:
                                 self.m2[i], self.m1[i] = new_donor, new_companion
-                            self.a[i] = new_a
+                            self.a[i] = new_a_rsun / self.RSUN_PER_AU
                             mtot = new_donor + new_companion
-                            self.period[i] = self.PFAC * np.sqrt((new_a**3) / mtot)
+                            self.period[i] = self.PFAC * np.sqrt(
+                                (self.a[i] ** 3) / mtot
+                            )
                             self.turnoff_time[i] = (
                                 tnow + self.lifetime_table.get_lifetime(self.m1[i])
                             )

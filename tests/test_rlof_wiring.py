@@ -173,9 +173,13 @@ def test_evolve_applies_stable_mass_transfer_instantaneously():
     )
     pop = BinaryPopulation(config)
 
+    a_rsun = 8.0
     pop.m1 = np.array([2.0])
     pop.m2 = np.array([10.0])
-    pop.a = np.array([8.0])
+    # pop.a is in AU (see BinaryPopulation.RSUN_PER_AU) -- evolve()
+    # converts to Rsun before calling apply_stable_mass_transfer, so
+    # the intended Rsun-scale separation must be pre-converted here.
+    pop.a = np.array([a_rsun / BinaryPopulation.RSUN_PER_AU])
     pop.period = np.array([100.0])
     pop.turnoff_time = np.array([1.0e6])
     pop.t2_lifetime = np.array([1.0e6])
@@ -197,7 +201,7 @@ def test_evolve_applies_stable_mass_transfer_instantaneously():
     assert pop.m1[0] < 2.0  # donor lost mass
     assert pop.m2[0] > 10.0  # companion gained mass
     assert pop.m1[0] < pop.m2[0]  # still the lighter star
-    assert pop.a[0] > 8.0  # orbit widened
+    assert pop.a[0] * BinaryPopulation.RSUN_PER_AU > a_rsun  # orbit widened
     assert not pop.did_merge[0]
     assert pop.rlof_processed[0]
 
@@ -210,7 +214,7 @@ def test_evolve_does_not_reprocess_stable_mass_transfer():
 
     pop.m1 = np.array([2.0])
     pop.m2 = np.array([10.0])
-    pop.a = np.array([8.0])
+    pop.a = np.array([8.0 / BinaryPopulation.RSUN_PER_AU])  # AU, see above
     pop.period = np.array([100.0])
     pop.turnoff_time = np.array([1.0e6])
     pop.t2_lifetime = np.array([1.0e6])
@@ -251,12 +255,12 @@ def test_evolve_applies_stable_mass_transfer_for_hg_donor():
     # ~0.12 Myr to t_BGB) since apply_stable_mass_transfer's own
     # bracket search needs donor_radius meaningfully above (not
     # razor-equal to) the current Roche lobe.
-    donor_mass, companion_mass, a = 5.0, 20.0, 100.0
+    donor_mass, companion_mass, a_rsun = 5.0, 20.0, 100.0
     rlof_time = 104.32589865040659 + 0.01
 
     pop.m1 = np.array([donor_mass])
     pop.m2 = np.array([companion_mass])
-    pop.a = np.array([a])
+    pop.a = np.array([a_rsun / BinaryPopulation.RSUN_PER_AU])  # AU, see above
     pop.period = np.array([1000.0])
     pop.turnoff_time = np.array([1.0e6])
     pop.t2_lifetime = np.array([1.0e6])
@@ -276,7 +280,7 @@ def test_evolve_applies_stable_mass_transfer_for_hg_donor():
     assert pop.m1[0] + pop.m2[0] == pytest.approx(total_mass_before)
     assert pop.m1[0] < donor_mass  # donor lost mass
     assert pop.m2[0] > companion_mass  # companion gained mass
-    assert pop.a[0] > a  # orbit widened
+    assert pop.a[0] * BinaryPopulation.RSUN_PER_AU > a_rsun  # orbit widened
     assert pop.rlof_processed[0]
 
 
@@ -297,7 +301,7 @@ def test_evolve_common_envelope_merges_when_energy_balance_favours_merger():
 
     pop.m1 = np.array([5.0])
     pop.m2 = np.array([3.0])
-    pop.a = np.array([100.0])
+    pop.a = np.array([100.0 / BinaryPopulation.RSUN_PER_AU])  # AU, see above
     pop.period = np.array([1000.0])
     pop.turnoff_time = np.array([1.0e6])
     pop.t2_lifetime = np.array([1.0e6])
@@ -357,7 +361,7 @@ def test_evolve_common_envelope_survives_when_energy_balance_favours_survival():
 
     pop.m1 = np.array([donor_mass])
     pop.m2 = np.array([companion_mass])
-    pop.a = np.array([a])
+    pop.a = np.array([a / BinaryPopulation.RSUN_PER_AU])  # AU, see above
     pop.period = np.array([1000.0])
     pop.turnoff_time = np.array([1.0e6])
     pop.t2_lifetime = np.array([1.0e6])
@@ -376,7 +380,7 @@ def test_evolve_common_envelope_survives_when_energy_balance_favours_survival():
 
     assert pop.m1[0] == pytest.approx(core_mass)
     assert pop.m2[0] == companion_mass
-    assert pop.a[0] < a
+    assert pop.a[0] * BinaryPopulation.RSUN_PER_AU < a
     assert not pop.did_merge[0]
     assert pop.rlof_processed[0]
 
@@ -431,7 +435,7 @@ def test_config_alpha_ce_override_propagates_into_evolve_common_envelope():
 
     pop.m1 = np.array([donor_mass])
     pop.m2 = np.array([companion_mass])
-    pop.a = np.array([a])
+    pop.a = np.array([a / BinaryPopulation.RSUN_PER_AU])  # AU, see above
     pop.period = np.array([1000.0])
     pop.turnoff_time = np.array([1.0e6])
     pop.t2_lifetime = np.array([1.0e6])
