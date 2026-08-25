@@ -2,7 +2,7 @@
 # programme.md, "Figure 6 -- Stochastic realisations": "For finite
 # cluster masses, show distributions rather than means... This
 # provides the bridge to Paper 2."). Explicitly out-of-scope for
-# Paper 1's own milestone (`docs/provenance.md`'s "Known gaps"), but
+# Paper 1's own milestone (`docs/known-gaps.md`), but
 # a lightweight first look, per an explicit user request (chat,
 # 2026-08-25) -- NOT Paper 2's full parameter-sweep/experiment-runner
 # machinery (`docs/science/development-roadmap.md` item 4's `Event`/

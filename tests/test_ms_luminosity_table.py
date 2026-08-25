@@ -1,5 +1,5 @@
 """Unit tests for MSLuminosityTable.get_lbol()'s mass-rescaling formula
--- closes the gap noted in docs/provenance.md Section 4: this was the
+-- closes the gap noted in docs/physics/observables.md: this was the
 site of this session's own mass-normalization bug (the MS luminosity
 curve was baked to a fixed fiducial 1e6 Msun cluster and added directly
 to lumx_tot from a population of a different actual mass), fixed but

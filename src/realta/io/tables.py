@@ -314,8 +314,8 @@ class UVLuminosityTable(DataTable):
     metallicity as a documented Z=0 proxy).
 
     The `fuv_lbol_z*.dat` data files (generated via FSPS + SPS_HOME)
-    now exist in `src/realta/data/` -- see docs/provenance.md Section
-    7. This class still degrades gracefully exactly like
+    now exist in `src/realta/data/` -- see docs/physics/observables.md.
+    This class still degrades gracefully exactly like
     `MSLuminosityTable` does for a missing file (e.g. a custom
     `data_dir` that doesn't have them): `get_luv()` returns 0.0 rather
     than raising.

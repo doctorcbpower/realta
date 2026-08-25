@@ -15,7 +15,8 @@ script's loader is deliberately specific to that shape, not a general
 experiment-runner -- see the config file's own header comment).
 
 Observables, exactly as currently implemented (see
-docs/provenance.md Sections 4/6/7 for what each one is and isn't):
+docs/physics/observables.md and docs/physics/interaction-prescriptions.md
+for what each one is and isn't):
     L_bol(t) = MS bolometric luminosity (MSLuminosityTable) + L_X(t)
                -- matches notebooks/Power_etal_2009_Plots.ipynb's own
                "Total bolometric luminosity" convention.
@@ -36,7 +37,7 @@ docs/provenance.md Sections 4/6/7 for what each one is and isn't):
     L_X(t)   = lumx_tot, summed active-HMXB X-ray luminosity.
 
 UVLuminosityTable's data files (src/realta/data/fuv_lbol_z*.dat) exist
-and load correctly -- see docs/provenance.md Section 7. This script
+and load correctly -- see docs/physics/observables.md. This script
 still prints an explicit warning if the table didn't load (e.g. a
 custom --output-dir/data_dir missing them), producing L_UV=0 and a
 degenerate Figure 2, rather than silently producing a misleading one.

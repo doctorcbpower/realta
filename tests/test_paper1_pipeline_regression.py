@@ -6,9 +6,10 @@ caught the AU/Rsun unit mismatch (`self.a` is AU, but
 `classify_rlof`/`find_rlof_onset`/`apply_common_envelope` expect Rsun)
 that made Figure 2 completely degenerate until it was found by
 manually running `scripts/run_paper1_experiment.py` (see
-docs/provenance.md Section 6's "Residual, understood degeneracy" note
-and Section 10's units-bug row). Nothing in the existing suite would
-have failed if that conversion were silently removed again.
+docs/physics/interaction-prescriptions.md's "STABLE_MASS_TRANSFER
+donor-mass structural limit" note and docs/physics/rlof-classifier.md's
+units note). Nothing in the existing suite would have failed if that
+conversion were silently removed again.
 
 Two layers, matching `tests/test_regression.py`'s existing pattern for
 the plain `fsur`-only baseline:

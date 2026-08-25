@@ -122,7 +122,7 @@ def test_evolve_rejuvenates_ms_companion_instead_of_full_reset():
     (donor lighter than companion): by the time a lighter donor's own
     much longer MS+HG evolution reaches RLOF, the heavier companion has
     almost always already died by its own (shorter) lifetime -- the
-    same structural finding already documented in docs/provenance.md
+    same structural finding already documented in docs/physics/interaction-prescriptions.md
     for why STABLE_MASS_TRANSFER rarely reaches evolve() at all. This
     test verifies the rejuvenation code path itself is correct;
     whether it is commonly reached in a real population is a separate,

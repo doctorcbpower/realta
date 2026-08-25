@@ -145,7 +145,7 @@ def test_period_distribution_log_normal_is_narrower_than_log_uniform():
 def test_binary_sampling_pinned_regression_non_default():
     """Numeric regression pin combining non-default binary_fraction,
     mass_ratio_distribution, and period_distribution -- see
-    docs/provenance.md's A1 row. Values captured by an actual run,
+    docs/physics/binary-sampling.md. Values captured by an actual run,
     cross-checked for run-to-run determinism before being pinned, not
     hand-derived analytically, following tests/test_regression.py's
     own discipline.

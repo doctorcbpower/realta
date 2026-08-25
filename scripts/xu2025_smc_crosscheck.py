@@ -39,7 +39,7 @@ attempting to eliminate these -- this is a sanity check):
   include, fall through as PHASE_NOT_MODELLED here rather than being
   classified at all.
 - Realta's CE consequence model omits HTP02 eqs. 74-77 (partial
-  envelope retention) -- see docs/provenance.md Section 12a.
+  envelope retention) -- see docs/physics/mass-transfer.md.
 """
 
 from __future__ import annotations
