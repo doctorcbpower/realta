@@ -68,16 +68,44 @@ PLOT_STYLE = {
     "figure.autolayout": True,
 }
 
-# Display order and labels for Paper 1's five basic-experiment variants
-# (research-programme.md); see
-# docs/science/paper1-binary-interaction-proposal.md for what each one
-# means quantitatively.
+# Display order and labels for Paper 1's five original basic-experiment
+# variants (research-programme.md); see docs/science/
+# paper1-binary-interaction-proposal.md for what each one means
+# quantitatively. Two more (below) were added 2026-08-25 once
+# use_post_sn_rlof/use_wind_capture existed, so this figure shows every
+# HMXB-activation mode Realta currently implements, not just the
+# original five.
 PRESCRIPTION_LABELS = {
     "single": "Single-star",
     "non_interacting": "Non-interacting binaries",
     "standard_interaction": "Standard interaction",
     "enhanced_interaction": "Enhanced interaction",
     "enhanced_mergers": "Enhanced mergers",
+    "post_sn_rlof": "Post-SN secondary RLOF",
+    "wind_capture": "Wind-capture accretion",
+}
+
+# `post_sn_rlof`/`wind_capture` are NOT `binary_prescription` values
+# (`config.py::BINARY_PRESCRIPTIONS`) -- they're the two independent
+# opt-in flags added in a later session (`config.use_post_sn_rlof`,
+# `config.use_wind_capture`), each gated on its own physics (donor
+# fills its Roche lobe / CAK wind capture), not on interaction_boost or
+# q_crit_ms. Per the user's own explicit choice (chat, 2026-08-25):
+# each shown as ONE standalone curve, layered on top of the
+# `non_interacting` base (no RLOF-classifier-driven merger/stable-MT
+# channel active underneath), rather than crossed with all five
+# existing prescriptions -- keeps this figure at 7 readable curves
+# instead of a 5x2x2 combinatorial grid, and isolates each new
+# channel's own signature cleanly.
+VARIANT_OVERRIDES: dict[str, dict[str, bool | str]] = {
+    "post_sn_rlof": {
+        "binary_prescription": "non_interacting",
+        "use_post_sn_rlof": True,
+    },
+    "wind_capture": {
+        "binary_prescription": "non_interacting",
+        "use_wind_capture": True,
+    },
 }
 
 
@@ -106,6 +134,12 @@ def load_experiment_config(path: str | Path) -> tuple[dict, list[str]]:
             "'base' must not set binary_prescription directly -- it is "
             "supplied per-entry from 'binary_prescriptions'."
         )
+    for forced in ("use_post_sn_rlof", "use_wind_capture"):
+        if forced in base:
+            raise ValueError(
+                f"'base' must not set {forced!r} directly -- 'post_sn_rlof'/"
+                "'wind_capture' entries in 'binary_prescriptions' supply it."
+            )
 
     return base, prescriptions
 
@@ -118,7 +152,10 @@ def run_variant(base: dict, prescription: str, output_dir: Path) -> dict:
     straight from `results`, so this script actually exercises the
     real wiring rather than duplicating it.
     """
-    config = SimulationConfig(binary_prescription=prescription, **base)
+    if prescription in VARIANT_OVERRIDES:
+        config = SimulationConfig(**base, **VARIANT_OVERRIDES[prescription])
+    else:
+        config = SimulationConfig(binary_prescription=prescription, **base)
     sim = ClusterSimulation(config)
     results = sim.run(output_dir=str(output_dir / prescription))
 
