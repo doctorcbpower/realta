@@ -1,0 +1,62 @@
+# Figure 5 -- metallicity sweep (docs/science/research-programme.md,
+# "Figure 5 -- Metallicity": "Repeat the principal experiment for
+# several metallicities. Show whether the binary signature survives
+# changes in Z."). C-item, docs/science/paper1-detailed-work-
+# breakdown.md.
+#
+# NOT a SimulationConfig file itself -- see
+# scripts/figure5_metallicity_sweep.py's own small loader (same
+# base+sweep-list pattern as scripts/figure3_merger_effects.py and
+# scripts/figure4_imf_binary_grid.py). `base` mirrors
+# configs/paper1_basic_experiment.yml's own values for consistency,
+# except imetal itself, which is supplied per-entry from
+# `imetal_values` below.
+#
+# Two prescriptions only (not the principal experiment's full five):
+# "non_interacting" (no binary-interaction channel at all -- the
+# baseline) vs. "standard_interaction" (use_rlof_classifier=True,
+# interaction_boost=1.5) isolates the "binary signature" itself --
+# the separation between these two curves in L_X/L_UV(t) -- as
+# cleanly as this codebase's five variants allow, without "single"
+# (a different, non-binary-signature comparison) or the merger-
+# specific variants (C3/Figure 3's own subject) cluttering this
+# figure's actual question.
+#
+# imetal_values = [1, 2, 3] (Realta's full metallicity range, Z=0,
+# 0.008, 0.02) -- all three of Realta's usable presets are included
+# deliberately, not just the two "physical" ones (Z=0.008, 0.02):
+# imetal=1 (Z=0) is a legitimate technical extreme to check the
+# signature's robustness against, and MSLuminosityTable/
+# UVLuminosityTable/IonizingPhotonTable all have Z=0 data (io/
+# tables.py). "standard_interaction"'s own use_rlof_classifier=True
+# is known to log a warning and skip RLOF classification entirely at
+# imetal=1 (binaries/population.py's own documented, pre-existing
+# imetal=1 handling) -- at that metallicity this figure necessarily
+# shows "standard_interaction" reduced to the same DETACHED-only
+# behaviour as "non_interacting" (i.e. the binary signature itself is
+# not modelled at Z=0, not that it vanishes physically) -- flagged
+# here, not silently produced as if it were a real physics result.
+
+base:
+  ntot: 100000
+  mmin: 0.1
+  mmax: 100.0
+  mcut: 8.0
+  tmax: 100.0
+  dt: 0.5
+  imf_type: 2 # Kroupa
+  pmin: 1.0 # see configs/paper1_basic_experiment.yml's own note on why
+  pmax: 1000.0
+  mcomp: 0.5
+  fsur: 0.5
+  lxmin: 33.0
+  lxmax: 38.0
+  lunit: 1.0e+33
+  xray_distribution: weibull
+  iseed: 42
+
+binary_prescriptions:
+  - non_interacting
+  - standard_interaction
+
+imetal_values: [1, 2, 3]

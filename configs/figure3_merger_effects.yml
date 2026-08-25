@@ -1,0 +1,47 @@
+# Figure 3 -- effect of mergers (docs/science/research-programme.md,
+# "Figure 3 -- Effect of mergers": compare no mergers / standard
+# mergers / enhanced mergers, showing both luminosity evolution and
+# compact-object formation).
+#
+# NOT a SimulationConfig file itself -- see
+# scripts/figure3_merger_effects.py's own small loader (same pattern
+# as scripts/run_paper1_experiment.py). `base` mirrors
+# configs/paper1_basic_experiment.yml's own values for consistency.
+#
+# Prescription mapping (docs/science/paper1-binary-interaction-
+# proposal.md): "non_interacting" has no merger channel at all (no
+# mergers, the baseline); "standard_interaction" and "enhanced_mergers"
+# both drive mergers through the real RLOF classifier
+# (use_rlof_classifier=True), differing in q_crit_ms (0.695 default vs
+# 0.4, config.py::_PRESCRIPTION_DEFAULTS) -- NOTE (see
+# docs/provenance.md Section 10's Xu et al. cross-check finding):
+# because find_rlof_onset's automatically-selected donor is almost
+# always the heavier star (q1>1, comfortably above either q_crit_ms
+# value), "standard" and "enhanced" may show a smaller separation than
+# their names suggest -- this is the same already-documented,
+# genuine, not-tuned-away classifier property, not a bug in this
+# figure.
+
+base:
+  ntot: 100000
+  mmin: 0.1
+  mmax: 100.0
+  mcut: 8.0
+  tmax: 100.0
+  dt: 0.5
+  imf_type: 2 # Kroupa
+  pmin: 1.0 # see configs/paper1_basic_experiment.yml's own note on why
+  pmax: 1000.0
+  mcomp: 0.5
+  fsur: 0.5
+  imetal: 2
+  lxmin: 33.0
+  lxmax: 38.0
+  lunit: 1.0e+33
+  xray_distribution: weibull
+  iseed: 42
+
+binary_prescriptions:
+  - non_interacting
+  - standard_interaction
+  - enhanced_mergers

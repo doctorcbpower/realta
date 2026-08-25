@@ -320,6 +320,55 @@ calls for -- reviewed and accepted in chat before implementation.
 - `docs/provenance.md` gets new rows citing HTP02 section/equation
   numbers directly, following the existing discipline.
 
+### Population-level check, done (2026-08-25): `scripts/xu2025_smc_crosscheck.py`
+
+Ran the population-level check described above. Generated a broad
+population (`mcut=5`, `mmax=100`, `pmin=1`, `pmax=3162` days,
+`mass_ratio_distribution="flat_q"`, `imetal=2` -- the closest of
+Realta's three metallicity presets to SMC's true `Z~0.002-0.004`, not
+an exact match) and post-filtered to Xu et al.'s exact selection
+window (`0.3 <= q <= 0.95`), since Realta has no generation-time
+`q_min`/`q_max` sampling knob -- filtering after generation is a more
+faithful reproduction of "a comparable setup" than distorting the
+sampling distribution to approximate it. `COMMON_ENVELOPE`-classified
+systems were resolved via `apply_common_envelope` to get a genuine
+survive/merge split (survivors counted with `STABLE_MASS_TRANSFER` as
+"post-mass-transfer"; mergers counted with `IMMEDIATE_MERGER`).
+
+**Result**: Realta gives `post-mass-transfer=1.6%`, `merger=29.5%`,
+against Xu et al.'s `8%`/`7%`. Same order of magnitude, but a real,
+systematic discrepancy in the merger-dominated direction -- roughly
+5x too few post-MT systems, ~4x too many mergers.
+
+**Traced the cause, and it is exactly the already-documented emergent
+finding**, not a new bug: confirmed directly that **100% of the
+merger cases in this run have the heavier star (`m1`) as the RLOF
+donor** (`rlof_donor_is_star1` all `True` for every
+`IMMEDIATE_MERGER`-classified system in the sample). Because Eggleton's
+`R_L1/a` fraction increases monotonically with the donor's own mass
+ratio, the automatically-selected donor (whichever star reaches its
+own Roche lobe first) is almost always the more massive star -- and
+for Xu et al.'s own `q` selection window (`0.3-0.95`), that means the
+donor's mass ratio `q1 = M_donor/M_companion` is *always* `>1`
+(ranging `1.05-3.33` across that window), comfortably above
+`Q_CRIT_MS=0.695` (or the HG `q_crit` formula, similarly `<1` for
+realistic core-mass fractions) essentially every time -- so almost
+every RLOF event in this donor-selection regime is classified
+dynamically unstable (merger/CE) rather than stable, regardless of the
+specific `q`/`P` drawn. This is not something to tune away by
+adjusting `Q_CRIT_MS`/`ALPHA_CE`/`LAMBDA_CE` to force a closer match
+(that would be curve-fitting the classifier to one comparison point,
+against the brief's "never silently change scientific behaviour"
+principle) -- it is a genuine, reproducible, well-understood property
+of *this* classifier's automatic donor-selection logic
+(`find_rlof_onset`), confirmed sanity-checked against real
+observational statistics rather than assumed. `~22%` of the selected
+sample also falls to `PHASE_NOT_MODELLED` (GB/AGB donors beyond the
+classifier's MS/HG scope, or `M >= CORE_MASS_BGB_MAX_MASS`), a known,
+separate, already-documented scope limitation, not part of this
+particular discrepancy. See `docs/provenance.md` Section 10 for the
+full writeup and the pinned numeric values.
+
 ## CE alpha-lambda: implementation outline (not yet implemented)
 
 Written 2026-08-24, to scope the next piece of work and to identify

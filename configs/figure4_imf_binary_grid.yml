@@ -1,0 +1,42 @@
+# Figure 4 -- IMF vs. binary-fraction degeneracy grid
+# (docs/science/research-programme.md, "Figure 4 -- IMF versus binary
+# degeneracy"). A grid in (alpha_IMF, f_bin), showing L_X/L_UV at
+# selected ages, to identify degeneracies between the two.
+#
+# NOT a SimulationConfig file itself -- see
+# scripts/figure4_imf_binary_grid.py's own small loader, which builds
+# one SimulationConfig per (alpha_imf, f_bin) grid point from `base` +
+# that pair. imf_type is forced to 1 (Salpeter) by the script -- A4's
+# continuous imf_slope only applies there (see
+# imf/factory.py::get_imf's docstring for why). `base` otherwise
+# mirrors configs/paper1_basic_experiment.yml's own values for
+# consistency (mcut/pmin/pmax/mcomp/fsur/imetal), except ntot, reduced
+# here for a 5x5=25-point grid to stay fast.
+
+base:
+  ntot: 30000
+  mmin: 0.1
+  mmax: 100.0
+  mcut: 8.0
+  tmax: 100.0
+  dt: 1.0
+  pmin: 1.0 # see configs/paper1_basic_experiment.yml's own note on why
+  pmax: 1000.0
+  mcomp: 0.5
+  fsur: 0.5
+  imetal: 2
+  lxmin: 33.0
+  lxmax: 38.0
+  lunit: 1.0e+33
+  xray_distribution: weibull
+  iseed: 42
+
+# Salpeter slope grid (config.imf_slope) -- Salpeter's own canonical
+# value 2.35 is centred in this range.
+alpha_imf_values: [1.65, 1.825, 2.0, 2.175, 2.35, 2.525, 2.7, 2.875, 3.05]
+
+# Binary-fraction grid (config.binary_fraction, A1).
+f_bin_values: [0.0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0]
+
+# Ages (Myr) at which to slice L_X/L_UV for the grid panels.
+selected_ages: [10.0, 30.0, 60.0]
