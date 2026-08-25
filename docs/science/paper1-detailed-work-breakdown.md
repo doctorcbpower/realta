@@ -92,39 +92,46 @@ complete. See their own sections above for the implementation
 writeup, and `docs/provenance.md` Section 4 for the full
 traceability.
 
-**Still not done**:
+**Update, 2026-08-25**: B2's Xu et al. cross-check and B3's rejuvenation
+are now also done -- see their own sections below for the writeup, and
+`docs/provenance.md` Sections 10/12 for the full traceability. Workstream
+B is now fully complete except Hovis-Afflerbach's stripped-donor
+properties, which remain a deliberate, documented extension point only
+(per this item's own original scope, not a gap).
 
-- B2's Xu et al. (2025) SMC-statistics cross-check: not done -- the
-  classifier's population-level outcome fractions have never been
-  compared against that paper's 8%-post-MT/7%-merger figures.
-- B3's Brček, Hirai, Mandel & Lower (2026) rejuvenation and
-  Hovis-Afflerbach et al. (2025) stripped-donor properties: not
-  implemented (as this document itself allows -- "leave an explicit
-  extension point ... even if not implemented now"). What exists
-  instead is a simpler full lifetime-clock-reset simplification,
-  explicitly documented as not the Brček treatment.
-- C2 (Figure 4, IMF/binary grid): not started -- blocked on A1 and A4.
-- C3 (Figure 3, mergers): not started -- blocked on B5's figure-side
-  work (the bookkeeping exists, the figure does not).
-- Figure 5 (metallicity sweep): not built as an actual figure yet,
-  though the underlying 3-preset `imetal` system this item relies on
-  is unchanged/available.
+**Update, 2026-08-25 (later)**: C2 (Figure 4), C3 (Figure 3), and
+Figure 5 (metallicity sweep) are now all done -- see
+`docs/provenance.md` Section 14 for the full traceability of all
+three. The post-SN secondary RLOF channel (`config.use_post_sn_rlof`,
+below) and the wind-capture accretion model
+(`config.use_wind_capture`, `docs/provenance.md` Section 15) are also
+both done, including the wind-capture wiring into
+`BinaryPopulation.evolve()` -- this document's every originally-listed
+item, plus everything raised during its implementation, is now closed.
 
-**New finding, not on this document's original list**: the same
-session that closed out B1-B4/C1 also found that
-`STABLE_MASS_TRANSFER`/`interaction_boost` cannot structurally fire
-for the mass regime Paper 1's basic experiment covers -- the donor for
-that channel is always the lighter, much-slower-evolving companion
-(`generate_population` enforces `m2 <= m1`), so the heavier primary
-has essentially always already exploded before the channel becomes
-reachable (confirmed: zero of 51 `STABLE_MASS_TRANSFER`-classified
-binaries in the pinned Paper 1 config were ever processed across a
-full 100 Myr run). This is not covered by A1-C3 above -- see
-`docs/science/paper1-followup-prompt.md` for the full writeup and a
-proposed scope (a post-SN secondary-Roche-lobe-overflow channel onto
-the by-then-compact primary). That document and this one currently
-overlap/aren't reconciled with each other; worth resolving into a
-single source of truth before further planning.
+~~Adjacent finding from B3's implementation: CE survival incorrectly
+reset the companion's lifetime clock~~ -- fixed (2026-08-25, by
+explicit user decision: leave the companion's clock alone entirely,
+not reset or rejuvenated). See `docs/provenance.md` Section 12.
+
+**New finding, not on this document's original list -- now closed
+(RLOF piece), 2026-08-25**: the same session that closed out
+B1-B4/C1 also found that `STABLE_MASS_TRANSFER`/`interaction_boost`
+cannot structurally fire for the mass regime Paper 1's basic
+experiment covers -- the donor for that channel is always the lighter,
+much-slower-evolving companion (`generate_population` enforces
+`m2 <= m1`), so the heavier primary has essentially always already
+exploded before the channel becomes reachable (confirmed: zero of 51
+`STABLE_MASS_TRANSFER`-classified binaries in the pinned Paper 1
+config were ever processed across a full 100 Myr run). The missing
+physics this exposed -- a post-SN secondary-Roche-lobe-overflow
+channel onto the by-then-compact primary -- is now implemented
+(`config.use_post_sn_rlof`) -- see `docs/science/paper1-followup-prompt.md`
+(now updated) and `docs/provenance.md` Section 2 for the full writeup.
+Wind accretion, a genuinely separate channel raised by the user during
+that work, was implemented and then wired into `evolve()` in a later
+session (`config.use_wind_capture`) -- see the followup prompt's own
+updated note and `docs/provenance.md` Section 15.
 
 ## Workstream A -- independent of the interaction-model decisions
 
@@ -239,7 +246,7 @@ explicitly labeled and cited as provisional/reviewable, rather than
 blocking on that conversation finishing. Do not treat those defaults
 as final without confirmation.
 
-### B1. Radius/phase module
+### B1. Radius/phase module -- DONE (earlier session)
 
 Implement Hurley, Pols & Tout (2000, MNRAS 315, 543) -- the SSE
 analytic fitting formulae for R(t), L(t), core mass, and
@@ -255,7 +262,7 @@ L_bol/L_UV (from A2), or whether this migrates the primary
 luminosity source too. Record the decision in docs/provenance.md
 -- do not let the two silently diverge.
 
-### B2. Interaction outcome classifier
+### B2. Interaction outcome classifier -- DONE (classifier: earlier session; Xu et al. cross-check: 2026-08-25)
 
 Given (M1, M2, a, Z) at the moment B1's R(t) meets the donor's
 Roche lobe radius (Eggleton 1983 fit), classify: no interaction /
@@ -273,7 +280,18 @@ arXiv:2503.23876)'s SMC statistics (8% post-mass-transfer, 7%
 merger, for M1=5-100 Msun, q=0.3-0.95, P=1-3162 d) as a sanity
 check for a comparable setup -- not an exact-match requirement.
 
-### B3. Consequence model
+Xu et al. cross-check done: `scripts/xu2025_smc_crosscheck.py`. Result:
+Realta gives 1.6% post-mass-transfer / 29.5% merger against Xu et
+al.'s 8%/7% -- a real, systematic (not tuned-away) discrepancy, traced
+directly to the already-documented `find_rlof_onset` donor-selection
+emergent property (confirmed: 100% of merger cases in the cross-check
+sample have the heavier star as donor, giving `q1>1` and therefore
+`q1>q_crit` almost always for Xu et al.'s own `q` selection window).
+See `docs/provenance.md` Section 10 and
+`docs/science/rlof-ce-classifier-proposal.md`'s "Population-level
+check" note for the full writeup.
+
+### B3. Consequence model -- DONE, using Tout et al. (1997) not Brček et al. (2026) (2026-08-25)
 
 For stable-MT and CE-survive outcomes, update (M1, M2, a) via
 mass/angular-momentum conservation and the alpha-lambda CE
@@ -285,7 +303,27 @@ scratch. Leave an explicit extension point for stripped-donor
 properties (Hovis-Afflerbach et al. 2025, A&A 697, A239,
 arXiv:2412.05356) even if not implemented now.
 
-### B4. Binary-prescription variants
+Mass/angular-momentum conservation and the alpha-lambda CE formalism
+were already done in an earlier session (`apply_stable_mass_transfer`,
+`apply_common_envelope`). Flagged before implementing rejuvenation:
+Brček et al. (2026) is a very recent, specialized paper with no
+verified access -- implementing its specific equations from memory
+risked fabricating physics. By explicit user decision, used Tout,
+Aarseth, Pols & Eggleton (1997, MNRAS 291, 732)'s own rejuvenation
+formula instead (eq. 41, the older, verified source HTP02 itself cites
+for this), pasted and checked directly against the paper before
+implementing. See `docs/provenance.md` Section 12 for the full
+writeup, including an honestly-reported limitation (no naturally-
+discovered population scenario exercises the MS-companion-still-alive
+branch; verified via hand-constructed test scenarios instead) and an
+adjacent, deliberately-NOT-yet-fixed finding (CE-survival incorrectly
+resets the companion's lifetime clock even though it is mass-
+unaffected by a surviving CE -- flagged for a separate decision).
+`Hovis-Afflerbach et al. (2025)` stripped-donor properties remain an
+explicit, documented extension point only, per this item's own scope
+note -- see `docs/provenance.md`'s "Known gaps" section (unchanged).
+
+### B4. Binary-prescription variants -- DONE (earlier session)
 
 Parameterize B2-B3 into the paper's actual named comparison
 variants: "standard binary interaction," "enhanced interaction,"
@@ -296,7 +334,7 @@ B1-B3, not automatic once they exist. Likely implemented as
 tunable knobs on B2/B3 (e.g. scaled interaction/merger
 probabilities) rather than entirely separate physics per variant.
 
-### B5. Merger/event tracking
+### B5. Merger/event tracking -- DONE, minimal bookkeeping only (earlier session)
 
 Log B3's merger outcomes as discrete events (minimal -- do not
 build the full Event taxonomy from development-roadmap.md item 4,
@@ -318,16 +356,28 @@ central figure) in one reproducible invocation. This is
 achievable once A1, A2, and at minimum one real interaction
 variant from B4 exist -- it does not need A3/A4/B5.
 
-### C2. Figure 4 (IMF vs binary degeneracy grid)
+### C2. Figure 4 (IMF vs binary degeneracy grid) -- DONE (2026-08-25)
 
 Needs A4 (continuous IMF slope) and A1 (binary fraction) -- does
 not need workstream B at all, since the grid is over
 (alpha_IMF, f_bin), not interaction prescription. Could ship
 before B is finished.
 
-### C3. Figure 3 (effect of mergers)
+`scripts/figure4_imf_binary_grid.py` + `configs/figure4_imf_binary_grid.yml`.
+See `docs/provenance.md` Section 14 for the full writeup, including a
+named, not-hidden limitation (small-number statistics at steep IMF
+slopes with the default grid `ntot`).
+
+### C3. Figure 3 (effect of mergers) -- DONE (2026-08-25)
 
 Needs the full B stack including B5's event tracking.
+
+`scripts/figure3_merger_effects.py` + `configs/figure3_merger_effects.yml`.
+See `docs/provenance.md` Section 14 for the full writeup, including a
+named scope limitation (no WD/NS/BH type census, since Realta has no
+compact-object-type classifier) and a confirmed, not-hidden consequence
+of the Xu et al. cross-check finding (standard vs. enhanced mergers
+are visually near-identical, for the same already-documented reason).
 
 Figure 5 (metallicity) is close to achievable now with the existing
 3-preset imetal system once C1 exists -- treat as a cheap add-on to

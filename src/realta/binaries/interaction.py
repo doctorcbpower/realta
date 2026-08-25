@@ -425,6 +425,70 @@ def apply_stable_mass_transfer(
     return new_donor_mass, new_companion_mass, new_separation
 
 
+def rejuvenate_ms_gainer(
+    mass_before: float, mass_after: float, age_before: float, z: float
+) -> float:
+    """Fractional main-sequence-lifetime remaining after an MS star
+    gains mass via stable mass transfer (B3, docs/science/
+    paper1-detailed-work-breakdown.md).
+
+    Source: Tout, Aarseth, Pols & Eggleton (1997, MNRAS 291, 732),
+    Sec. 5.1 "Rejuvenation", eq. (41), verified directly against the
+    paper (not from memory) before implementing:
+
+        t' = (mu/mu') * (tau'_MS / tau_MS) * t
+
+    where `t`/`t'` are the star's age just before/after the mass gain,
+    `tau_MS`/`tau'_MS` are its MS lifetime at the old/new mass, and
+    `mu = M` (old mass), `mu' = M'` (new mass) -- EXCEPT `mu'` is
+    redefined to equal `mu` (collapsing the mass-ratio factor to 1)
+    when `0.3 < M/Msun < 1.3` (radiative core; the range-check uses
+    the OLD mass). Outside that range (convective or fully-convective
+    core), the surviving `M/M'` factor makes the star appear younger
+    still than fractional-age preservation alone would give -- Tout et
+    al. attribute this to unburnt hydrogen being mixed into the
+    convective core by the incoming material (their Sec. 5.1 text,
+    citing Sandage 1953's blue-straggler mechanism). This is the same
+    formula HTP02 (2002) Sec. 2.6.6.1 cites (via Hurley, Pols & Tout
+    2000 Sec. 7.1) for the radiative-core/HG case, extended here to
+    the convective-core case using Tout et al.'s own eq. (41) directly
+    (HTP02 itself does not reproduce that part, only cites it).
+
+    `tau_MS` is HTP02's own `main_sequence.t_ms(mass, z)` (needed for
+    self-consistency with eq. 41, which is itself part of the same
+    Hurley/Tout fitting-formula family) -- NOT Realta's separate,
+    Schaerer-based `LifetimeTable` used elsewhere for the star's actual
+    supernova-triggering clock (see docs/provenance.md's "two
+    independent lifetime prescriptions" note). Returns a dimensionless
+    remaining-lifetime FRACTION (not an absolute time), for the caller
+    to apply against whatever lifetime source it uses for absolute
+    timing -- see `binaries/population.py::evolve`'s STABLE_MASS_TRANSFER
+    branch, which applies this fraction to `LifetimeTable.get_lifetime`
+    at the new mass, matching the existing post-interaction-reset
+    convention (Hurley-sourced *fraction*, Schaerer-sourced *absolute*
+    scale) rather than switching the star onto a third, inconsistent
+    timing system.
+
+    Assumes `age_before` is the star's true age since formation (i.e.
+    it has not previously had its lifetime clock reset by an earlier
+    interaction) -- true for Realta's current scope, since an RLOF
+    event is only ever processed once per binary (`rlof_processed`).
+    Clamped to a small positive floor rather than exactly 0, to avoid
+    handing the caller a zero-duration remaining phase.
+    """
+    t_ms_before = main_sequence.t_ms(mass_before, z)
+    t_ms_after = main_sequence.t_ms(mass_after, z)
+
+    if 0.3 < mass_before < 1.3:
+        mass_ratio_factor = 1.0
+    else:
+        mass_ratio_factor = mass_before / mass_after
+
+    age_after = mass_ratio_factor * (t_ms_after / t_ms_before) * age_before
+    remaining_fraction = 1.0 - age_after / t_ms_after
+    return max(1e-6, min(1.0, remaining_fraction))
+
+
 def apply_common_envelope(
     donor_mass: float,
     companion_mass: float,

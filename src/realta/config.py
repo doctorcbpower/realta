@@ -191,6 +191,64 @@ class SimulationConfig:
     # RLOF classification entirely rather than crashing.
     use_rlof_classifier: bool | None = None
 
+    # Post-SN secondary Roche-lobe overflow (docs/science/paper1-
+    # followup-prompt.md) -- independent of use_rlof_classifier above,
+    # which only covers PRE-SN interaction between two still-live
+    # stars. This is the physically dominant real HMXB-formation
+    # channel: the secondary's own later RLOF onto the by-then-compact
+    # primary (Case B/C mass transfer), checked every timestep once
+    # nturn==1 (primary already compact, secondary not yet exploded).
+    # Deliberately minimal scope: a single RLOF-only trigger (no wind-
+    # accretion/RLOF-fed spectral distinction), no consequence model
+    # (secondary mass/envelope and the compact primary's mass are left
+    # unchanged -- Hovis-Afflerbach et al. 2025's stripped-donor
+    # properties remain an explicit, separate extension point, not
+    # implemented here). On trigger, HMXB activation becomes CERTAIN
+    # (not a stochastic `fsur` draw) rather than the existing wind-fed
+    # approximation `fsur` represents -- real Roche-lobe accretion onto
+    # a compact object is qualitatively different from what `fsur` is
+    # meant to capture. Default False reproduces the pre-existing
+    # baseline exactly (no new code path runs at all). Requires
+    # imetal=2 or 3, same as use_rlof_classifier -- skipped with a
+    # logged warning at imetal=1 (Z=0).
+    use_post_sn_rlof: bool = False
+
+    # Wind-capture accretion (stellar/cak_wind.py, binaries/
+    # wind_capture.py; docs/science/paper1-followup-prompt.md) --
+    # El Mellah & Casse (2017)/Friend & Castor (1982)-based CAK wind +
+    # Bondi-Hoyle-Lyttleton capture, evaluated once nturn==1 (primary
+    # already compact) for a secondary donor that has NOT yet filled
+    # its Roche lobe (donor_radius < r_l2) -- the pre-RLOF regime
+    # use_post_sn_rlof's own trigger does not cover. Independent of
+    # use_post_sn_rlof: either can be enabled alone, or both together
+    # for a single continuous nturn==1 pipeline (wind-fed while
+    # detached, handing off to use_post_sn_rlof's certain-activation
+    # once the donor actually overflows). Produces a deterministic
+    # accretion luminosity (Eddington-capped, using the existing
+    # xray/luminosity.py::XRayLuminosity.eta=0.1 efficiency, previously
+    # unused) rather than the stochastic `fsur`/RLOF-classifier draws
+    # elsewhere in this module -- appropriate for a wind-fed system,
+    # whose accretion rate follows directly from the sampled donor/
+    # orbit properties rather than being a separate activation
+    # probability. Like use_post_sn_rlof, drawn once and held fixed for
+    # the rest of the binary's active lifetime (matching this module's
+    # existing "activate once" convention), not recomputed every
+    # timestep as the donor evolves. Default False reproduces the
+    # pre-existing baseline exactly. Requires imetal=2 or 3, same as
+    # use_post_sn_rlof -- skipped with a logged warning at imetal=1
+    # (Z=0).
+    use_wind_capture: bool = False
+
+    # CAK force-multiplier parameters for use_wind_capture's donor wind
+    # (stellar/cak_wind.py), El Mellah & Casse (2017) Sec. 3.3: `alpha`
+    # in (0,1), 0.45-0.65 for OB supergiants (citing Shimada et al.
+    # 1994) -- 0.55 taken as the range's midpoint, not a fitted value.
+    # `q_force` (their Q, Gayley 1995 parametrization) ~900 typical for
+    # OB supergiants, 800-2000 range -- 900 taken directly as their
+    # stated typical value.
+    wind_cak_alpha: float = 0.55
+    wind_cak_q_force: float = 900.0
+
     # Critical mass ratio (q1 = M_donor/M_companion) above which a
     # Roche-lobe-overflowing MS donor merges dynamically rather than
     # transferring mass stably (Hurley, Tout & Pols 2002, Sec. 2.6.4).
@@ -301,6 +359,14 @@ class SimulationConfig:
             raise ValueError(f"q_crit_ms must be > 0, got {self.q_crit_ms}")
         if self.alpha_ce <= 0.0:
             raise ValueError(f"alpha_ce must be > 0, got {self.alpha_ce}")
+        if not 0.0 < self.wind_cak_alpha < 1.0:
+            raise ValueError(
+                f"wind_cak_alpha must be in (0, 1), got {self.wind_cak_alpha}"
+            )
+        if self.wind_cak_q_force <= 0.0:
+            raise ValueError(
+                f"wind_cak_q_force must be > 0, got {self.wind_cak_q_force}"
+            )
         if self.lambda_ce <= 0.0:
             raise ValueError(f"lambda_ce must be > 0, got {self.lambda_ce}")
         if self.imf_slope is not None:

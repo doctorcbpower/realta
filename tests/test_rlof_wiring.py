@@ -4,6 +4,8 @@ docs/science/rlof-ce-classifier-proposal.md and
 docs/provenance.md Section 10.
 """
 
+from unittest.mock import patch
+
 import numpy as np
 import pytest
 
@@ -451,3 +453,63 @@ def test_config_alpha_ce_override_propagates_into_evolve_common_envelope():
 
     pop.evolve(tnow=age + 0.01, dt=1.0)
     assert pop.did_merge[0]
+
+
+def test_evolve_common_envelope_survives_leaves_companion_clock_untouched():
+    """CE-survival must reset the DONOR's lifetime clock (it was just
+    stripped to its core mass -- a real, physical change) but leave
+    the COMPANION's clock entirely alone -- apply_common_envelope's
+    own docstring says the companion is mass-unaffected by a surviving
+    CE, so resetting its clock would incorrectly de-age it (pretend it
+    just formed anew), the same class of issue found and fixed for
+    STABLE_MASS_TRANSFER's companion (B3 rejuvenation). This is a real
+    bug found while implementing B3, fixed by explicit user decision:
+    leave the companion's clock alone entirely rather than reset or
+    rejuvenate it (it has no mass change for rejuvenation to apply to).
+
+    A genuine survives=True case could not be found across a wide
+    search of real donor/companion/age combinations on the currently-
+    supported HG track range (see docs/provenance.md Section 12a's
+    CE-merger-dominance finding) -- this test mocks
+    apply_common_envelope directly to exercise evolve()'s wiring logic
+    in isolation, independent of whether real stellar tracks currently
+    reach that branch.
+    """
+    config = SimulationConfig(
+        ntot=10, imetal=3, use_rlof_classifier=True, fsur=1.0, iseed=1
+    )
+    pop = BinaryPopulation(config)
+
+    donor_mass, companion_mass, a, rlof_time = 5.0, 3.0, 5.0, 10.0
+    pop.m1 = np.array([donor_mass])
+    pop.m2 = np.array([companion_mass])
+    pop.a = np.array([a / BinaryPopulation.RSUN_PER_AU])
+    pop.period = np.array([1000.0])
+    pop.turnoff_time = np.array([1.0e6])
+    sentinel_companion_clock = 4321.0
+    pop.t2_lifetime = np.array([sentinel_companion_clock])
+    pop.nturn = np.zeros(1, dtype=np.int8)
+    pop.is_survived = np.ones(1, dtype=bool)
+    pop.lum_xray = np.zeros(1)
+    pop.did_merge = np.zeros(1, dtype=bool)
+    pop.merge_time = np.array([np.nan])
+    pop.rlof_time = np.array([rlof_time])
+    pop.rlof_outcome = np.array([RLOFOutcome.COMMON_ENVELOPE], dtype=object)
+    pop.rlof_donor_is_star1 = np.array([True])
+    pop.rlof_processed = np.zeros(1, dtype=bool)
+
+    core_mass = 0.9
+    with patch(
+        "realta.binaries.population.apply_common_envelope",
+        return_value=(True, core_mass, companion_mass, 2.0),
+    ):
+        pop.evolve(tnow=rlof_time, dt=1.0)
+
+    assert pop.m1[0] == pytest.approx(core_mass)
+    assert pop.m2[0] == companion_mass
+    # Donor (star1) clock IS reset.
+    assert pop.turnoff_time[0] == pytest.approx(
+        rlof_time + pop.lifetime_table.get_lifetime(core_mass)
+    )
+    # Companion (star2) clock is untouched -- still the sentinel.
+    assert pop.t2_lifetime[0] == sentinel_companion_clock
