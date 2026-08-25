@@ -55,11 +55,26 @@ written before the papers were provided) is entirely superseded by the
 actual implementation above -- kept for the historical record of what
 was anticipated vs. what the papers actually gave.
 
-A future session should get the actual
-source text for Vink et al. (2001) (and whichever Bondi-Hoyle-
-Lyttleton reference is preferred) pasted and verified before
-implementing, the same way HTP02/Tout et al. (1997) were for this
-session's other additions.
+(Superseded by the actual implementation above: El Mellah & Casse 2017
+and Friend & Castor 1982 were pasted and verified directly, in place
+of the Vink et al. 2001 placeholder this paragraph originally named --
+kept only for the historical record of what was anticipated.)
+
+---
+
+**Update, 2026-08-25 (later): this entire document is now closed.**
+Figure 3 (mergers), Figure 4 (IMF/binary degeneracy grid), and Figure
+5 (metallicity sweep) -- all named as "out of scope for this
+milestone" in the original prompt body below -- were built in a later
+session; see `docs/provenance.md` Section 14. Every item this document
+raised, including its own follow-on wind-capture-wiring ask above, is
+done. The "Out of scope" list below is retained as the historical
+record of this document's original scope, not as a current status
+list -- see `docs/provenance.md`'s "Known gaps" section for the
+authoritative up-to-date list of what remains (currently: an
+`examples/` directory, Figure 6/Paper 2's `Event`/`PopulationHistory`
+machinery, Brček et al. 2026 rejuvenation, and Hovis-Afflerbach et al.
+2025 stripped-donor properties).
 
 ---
 

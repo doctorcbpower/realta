@@ -1,0 +1,64 @@
+# Figure 6 -- stochastic realisations (docs/science/research-
+# programme.md, "Figure 6 -- Stochastic realisations": "For finite
+# cluster masses, show distributions rather than means... This
+# provides the bridge to Paper 2."). Explicitly out-of-scope for
+# Paper 1's own milestone (`docs/provenance.md`'s "Known gaps"), but
+# a lightweight first look, per an explicit user request (chat,
+# 2026-08-25) -- NOT Paper 2's full parameter-sweep/experiment-runner
+# machinery (`docs/science/development-roadmap.md` item 4's `Event`/
+# `PopulationHistory` abstraction), which does not exist yet. This
+# script instead just repeats the SAME config `n_realizations` times
+# per cluster-mass proxy (`ntot_values`), varying only `iseed`, and
+# looks at the resulting spread in `L_X/L_UV` at each of
+# `selected_ages` -- the minimum needed to see the actual shape of
+# `P(L_X/L_UV | M_cl, Z, t)` that the research programme names, not a
+# full re-implementation of Paper 2's own machinery.
+#
+# `ntot` is a proxy for `M_cl`, not `M_cl` itself -- the script reads
+# each realization's own `BinaryPopulation.total_mass_msun` (already
+# computed, `binaries/population.py`) and reports the REALIZED cluster
+# mass, not the requested `ntot`, on the figure's own axis labels.
+#
+# binary_prescription: non_interacting (Power et al. 2009's own
+# fsur-based baseline) -- chosen deliberately over an RLOF-classifier
+# prescription, so the stochasticity shown here is purely the
+# finite-N sampling noise the research programme's own Figure 6 is
+# about (IMF sampling + fsur activation), not conflated with the
+# RLOF classifier's own additional stochastic branching.
+
+base:
+  mmin: 0.1
+  mmax: 100.0
+  mcut: 8.0
+  tmax: 100.0
+  dt: 2.0
+  imf_type: 2 # Kroupa
+  pmin: 1.0 # see configs/paper1_basic_experiment.yml's own note on why
+  pmax: 1000.0
+  mcomp: 0.5
+  fsur: 0.5
+  binary_prescription: non_interacting
+  imetal: 2
+  lxmin: 33.0
+  lxmax: 38.0
+  lunit: 1.0e+33
+  xray_distribution: weibull
+
+# Cluster-mass proxy grid -- ntot values spanning roughly a factor of
+# 20 (small/intermediate/large cluster), enough to see the noise
+# shrink visibly with increasing M_cl without an excessive run count
+# (3 masses x 40 realizations = 120 runs total).
+ntot_values: [2000, 8000, 32000]
+
+n_realizations: 40
+
+# Ages (Myr) at which to slice L_X/L_UV for the distribution panels --
+# same nearest-timestep convention as Figure 4.
+selected_ages: [30.0, 90.0]
+
+# Realization k (0-indexed) at a given ntot uses iseed = base_iseed +
+# k*1000 + (index of ntot in ntot_values) -- see
+# scripts/figure6_stochastic_realisations.py::run_realization for the
+# exact formula; large strides keep realizations across different
+# ntot values from ever sharing a seed.
+base_iseed: 100

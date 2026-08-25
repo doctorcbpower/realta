@@ -56,15 +56,22 @@ base:
   xray_distribution: weibull
   iseed: 42
 
-# Paper 1's five basic-experiment variants (research-programme.md).
-# See docs/science/paper1-binary-interaction-proposal.md for what each
-# one means quantitatively -- "standard_interaction",
-# "enhanced_interaction", and "enhanced_mergers" use illustrative,
-# not-paper-derived parameter defaults (interaction_boost/p_merge/etc.,
-# see config.py), flagged there and in docs/provenance.md Section 6.
+# Paper 1's five original basic-experiment variants (research-
+# programme.md), PLUS the two later-added HMXB-activation channels
+# ("post_sn_rlof", "wind_capture" -- not `binary_prescription` values,
+# see scripts/run_paper1_experiment.py::VARIANT_OVERRIDES for how these
+# two resolve to a config), so this figure shows every mode Realta
+# currently implements. See docs/science/paper1-binary-interaction-
+# proposal.md for what each of the original five means quantitatively
+# -- "standard_interaction", "enhanced_interaction", and
+# "enhanced_mergers" use illustrative, not-paper-derived parameter
+# defaults (interaction_boost/p_merge/etc., see config.py), flagged
+# there and in docs/provenance.md Section 6.
 binary_prescriptions:
   - single
   - non_interacting
   - standard_interaction
   - enhanced_interaction
   - enhanced_mergers
+  - post_sn_rlof
+  - wind_capture

@@ -179,3 +179,64 @@ def test_run_paper1_experiment_produces_nondegenerate_output(tmp_path):
 
     assert fig1_path.exists() and fig1_path.stat().st_size > 0
     assert fig2_path.exists() and fig2_path.stat().st_size > 0
+
+
+def test_post_sn_rlof_and_wind_capture_variants_resolve_and_produce_output(tmp_path):
+    """The two later-added HMXB-activation modes (2026-08-25) aren't
+    `binary_prescription` values -- `run_variant` resolves them via
+    `VARIANT_OVERRIDES` to `non_interacting` + the relevant flag. This
+    confirms that resolution actually wires the flag through (each
+    variant's own config has it set) and that both produce genuine,
+    non-degenerate output on a population set up to trigger them (a
+    tight-orbit, `mcomp`-eligible massive-binary population)."""
+    module = _load_run_paper1_experiment_module()
+
+    base = {
+        "ntot": 5_000,
+        "imf_type": 2,
+        "tmax": 60.0,
+        "dt": 1.0,
+        "mcut": 8.0,
+        "pmin": 1.0,
+        "pmax": 30.0,
+        "mcomp": 0.5,
+        "fsur": 0.0,
+        "imetal": 2,
+        "iseed": 11,
+    }
+
+    results_rlof = module.run_variant(base, "post_sn_rlof", tmp_path)
+    results_wind = module.run_variant(base, "wind_capture", tmp_path)
+
+    assert np.max(results_rlof["l_x"]) > 0.0
+    assert np.max(results_wind["l_x"]) > 0.0
+
+
+def test_variant_overrides_are_disjoint_from_binary_prescriptions():
+    module = _load_run_paper1_experiment_module()
+    from realta.config import BINARY_PRESCRIPTIONS
+
+    assert set(module.VARIANT_OVERRIDES) & set(BINARY_PRESCRIPTIONS) == set()
+
+
+def test_load_experiment_config_rejects_use_post_sn_rlof_and_use_wind_capture_in_base():
+    module = _load_run_paper1_experiment_module()
+    import tempfile
+
+    import yaml
+
+    for forced_field in ("use_post_sn_rlof", "use_wind_capture"):
+        bad_config = {
+            "base": {"ntot": 100, forced_field: True},
+            "binary_prescriptions": ["non_interacting"],
+        }
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+            yaml.dump(bad_config, f)
+            path = f.name
+        try:
+            with pytest.raises(ValueError):
+                module.load_experiment_config(path)
+        finally:
+            import os
+
+            os.remove(path)
