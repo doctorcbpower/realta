@@ -9,11 +9,11 @@ Adds to the original figure4_imf_binary_grid.py rendering:
     already used (one global vmin/vmax, one colorbar).
 """
 
+import re
 from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
-import re
 import yaml
 
 GRID_DIR = Path("output/figure4")
