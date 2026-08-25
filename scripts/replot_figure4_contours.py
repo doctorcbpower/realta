@@ -10,13 +10,15 @@ Adds to the original figure4_imf_binary_grid.py rendering:
 """
 
 from pathlib import Path
-import re
-import yaml
+
 import numpy as np
 import matplotlib.pyplot as plt
+import re
+import yaml
 
 GRID_DIR = Path("output/figure4")
-CONFIG = yaml.safe_load(open("configs/figure4_imf_binary_grid.yml"))
+with open("configs/figure4_imf_binary_grid.yml") as f:
+    CONFIG = yaml.safe_load(f)
 ALPHA_VALUES = CONFIG["alpha_imf_values"]
 FBIN_VALUES = CONFIG["f_bin_values"]
 SELECTED_AGES = CONFIG["selected_ages"]
