@@ -56,7 +56,7 @@ def main():
         t, lx, luv = load_point(d)
         with np.errstate(divide="ignore", invalid="ignore"):
             rx = np.where(luv > 0, lx / luv, np.nan)
-        points.append(dict(alpha=alpha, fbin=fbin, t=t, rx=rx, dir=d.name))
+        points.append({alpha: alpha, fbin: fbin, t: t, rx: rx, dir: d.name})
 
     print(f"Loaded {len(points)} grid points")
 
