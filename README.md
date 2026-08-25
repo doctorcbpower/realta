@@ -5,6 +5,7 @@
 [![CI](https://github.com/doctorcbpower/realta/actions/workflows/ci.yml/badge.svg)](https://github.com/doctorcbpower/realta/actions/workflows/ci.yml)
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![DOI](https://zenodo.org/badge/1342348844.svg)](https://doi.org/10.5281/zenodo.22090646)
 
 **realta** (Irish, 'star') is a modular stellar and binary population-synthesis framework. It provides a transparent and reproducible way to construct stellar populations from specified formation histories, assign and evolve binary systems under explicit physical prescriptions, and follow the resulting stellar remnants and observables.
 
