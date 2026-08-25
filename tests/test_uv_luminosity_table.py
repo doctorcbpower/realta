@@ -1,4 +1,4 @@
-"""Unit tests for UVLuminosityTable -- see docs/provenance.md Section 7.
+"""Unit tests for UVLuminosityTable -- see docs/physics/observables.md.
 
 The real fuv_lbol_z*.dat data (generated via
 scripts/generate_fuv_luminosities.py, which requires FSPS + SPS_HOME)

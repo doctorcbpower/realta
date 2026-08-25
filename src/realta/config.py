@@ -36,7 +36,7 @@ BINARY_PRESCRIPTIONS = (
 # these three prescriptions specifically (NOT for "single" or
 # "non_interacting", which are unaffected -- use_rlof_classifier still
 # defaults to False for those, so the pinned baseline is untouched) --
-# see docs/provenance.md Section 6 for the old-vs-new pinned values and
+# see docs/physics/interaction-prescriptions.md for the old-vs-new pinned values and
 # the explicit rationale, per the brief's "never disguise a scientific
 # change as a refactor" principle. `p_merge` is deliberately NOT set
 # for enhanced_mergers any more (was 0.2/10.0/0.5) -- the real
@@ -179,8 +179,8 @@ class SimulationConfig:
     # enhanced_interaction/enhanced_mergers, False (the existing
     # floss/fsur/interaction_boost-only baseline, exactly preserved)
     # for every other prescription -- see _PRESCRIPTION_DEFAULTS above
-    # for the full reconciliation rationale and docs/provenance.md
-    # Section 6 for what changed. When True, this adds a new MS-RLOF
+    # for the full reconciliation rationale and
+    # docs/physics/interaction-prescriptions.md for what changed. When True, this adds a new MS-RLOF
     # event (stable mass transfer or immediate merger) to evolve(),
     # AND -- since this reconciliation -- interaction_boost is only
     # applied to binaries whose RLOF outcome was stable mass transfer,

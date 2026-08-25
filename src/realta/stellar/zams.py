@@ -6,7 +6,7 @@ the coefficients (see that paper's Section 5, opening paragraph).
 Coefficients transcribed directly from Tables 1 and 2 of the 1996
 paper (page 258), supplied as a clean-text PDF -- high transcription
 confidence, unlike some of the 2000 paper's later, denser appendix
-tables (see docs/provenance.md).
+tables (see docs/physics/stellar-tracks.md).
 
 Equations (page numbers/eq numbers refer to Tout et al. 1996):
 

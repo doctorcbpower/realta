@@ -39,4 +39,4 @@ alpha_imf_values: [1.65, 1.825, 2.0, 2.175, 2.35, 2.525, 2.7, 2.875, 3.05]
 f_bin_values: [0.0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0]
 
 # Ages (Myr) at which to slice L_X/L_UV for the grid panels.
-selected_ages: [10.0, 30.0, 60.0]
+selected_ages: [10.0, 30.0, 60.0, 90.0]

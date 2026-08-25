@@ -35,8 +35,9 @@ class BinaryPopulation:
 
     The core Monte Carlo engine, based on the coeval globular-cluster
     HMXB population model of Power et al. (2009) -- see
-    docs/provenance.md for the full paper-equation -> implementation ->
-    test traceability table this class's methods are part of.
+    docs/provenance.md for the ported-baseline paper-equation ->
+    implementation -> test traceability table, and docs/physics/ for
+    physics added beyond it.
     """
 
     PFAC = 365.229126
@@ -59,10 +60,7 @@ class BinaryPopulation:
     # companion radii from the Hurley/Tout stellar-radius fits, which
     # are explicitly in Rsun. Passing `self.a` (AU) into it unconverted
     # made every donor look ~215x closer to its Roche lobe than it
-    # really is -- a real bug found by running the full Paper 1
-    # pipeline end-to-end (see docs/provenance.md's "known gaps"/RLOF
-    # section): with the un-converted units, essentially every massive
-    # binary classified as IMMEDIATE_MERGER, regardless of period.
+    # really is -- see docs/physics/rlof-classifier.md's units note.
     # RSUN_PER_AU converts at that boundary -- self.a itself STAYS in
     # AU everywhere else (the SN1 mass-loss orbit-widening code below,
     # and every existing pinned regression value, is untouched).
@@ -531,7 +529,7 @@ class BinaryPopulation:
                             # for STABLE_MASS_TRANSFER (a related but
                             # distinct issue: that companion genuinely
                             # gains mass, this one doesn't change at
-                            # all), see docs/provenance.md Section 12.
+                            # all), see docs/physics/mass-transfer.md.
                             if self.rlof_donor_is_star1[i]:
                                 self.turnoff_time[i] = (
                                     tnow + self.lifetime_table.get_lifetime(self.m1[i])
@@ -608,7 +606,7 @@ class BinaryPopulation:
                     # DETACHED when use_rlof_classifier=False (every
                     # other prescription's default), so this does not
                     # perturb the pre-existing baseline -- see
-                    # docs/provenance.md Section 6 for the old-vs-new
+                    # docs/physics/interaction-prescriptions.md for the old-vs-new
                     # pinned values for the three affected prescriptions.
                     had_stable_mt = (
                         self.config.use_rlof_classifier

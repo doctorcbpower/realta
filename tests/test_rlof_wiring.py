@@ -1,7 +1,7 @@
 """Tests for wiring the RLOF classifier into BinaryPopulation
 (generate_population's precomputation + evolve()'s Phase 0) -- see
 docs/science/rlof-ce-classifier-proposal.md and
-docs/provenance.md Section 10.
+docs/physics/rlof-classifier.md.
 """
 
 from unittest.mock import patch
@@ -469,7 +469,7 @@ def test_evolve_common_envelope_survives_leaves_companion_clock_untouched():
 
     A genuine survives=True case could not be found across a wide
     search of real donor/companion/age combinations on the currently-
-    supported HG track range (see docs/provenance.md Section 12a's
+    supported HG track range (see docs/physics/mass-transfer.md's
     CE-merger-dominance finding) -- this test mocks
     apply_common_envelope directly to exercise evolve()'s wiring logic
     in isolation, independent of whether real stellar tracks currently

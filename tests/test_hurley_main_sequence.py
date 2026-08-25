@@ -1,6 +1,6 @@
 """Tests for the Hurley et al. (2000) main-sequence module (ZAMS-to-TMS
 only -- see src/realta/stellar/main_sequence.py's module docstring for
-scope). See docs/provenance.md and
+scope). See docs/physics/stellar-tracks.md and
 docs/science/rlof-ce-classifier-proposal.md for the transcription
 discipline these pin: a real coefficient bug (a40's gamma exponent and
 a41's alpha exponent, both off by a factor of 10) was caught during
@@ -101,7 +101,7 @@ def test_phase_reports_hg_past_ms_lifetime_and_raises_past_bgb():
 def test_pinned_values_z_solar():
     """Exact self-consistency regression pin (this implementation
     against itself, not an independent reference run -- see
-    docs/provenance.md for why no independent numeric reference exists
+    docs/physics/stellar-tracks.md for why no independent numeric reference exists
     yet). A change to any coefficient or equation will move these.
     """
     assert ms.t_ms(1.0, Z_SOLAR) == pytest.approx(11003.121, rel=1e-4)

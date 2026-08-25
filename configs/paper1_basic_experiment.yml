@@ -46,7 +46,7 @@ base:
   # fsur=1.0 every interaction_boost >= 1 saturates to fsur_eff=1 and
   # standard_interaction/enhanced_interaction become indistinguishable
   # from non_interacting (confirmed by an actual run while building
-  # this config -- see docs/provenance.md Section 6). fsur=0.5 leaves
+  # this config -- see docs/physics/interaction-prescriptions.md). fsur=0.5 leaves
   # room for the boost to actually separate the five variants.
   fsur: 0.5
   imetal: 2
@@ -56,15 +56,22 @@ base:
   xray_distribution: weibull
   iseed: 42
 
-# Paper 1's five basic-experiment variants (research-programme.md).
-# See docs/science/paper1-binary-interaction-proposal.md for what each
-# one means quantitatively -- "standard_interaction",
-# "enhanced_interaction", and "enhanced_mergers" use illustrative,
-# not-paper-derived parameter defaults (interaction_boost/p_merge/etc.,
-# see config.py), flagged there and in docs/provenance.md Section 6.
+# Paper 1's five original basic-experiment variants (research-
+# programme.md), PLUS the two later-added HMXB-activation channels
+# ("post_sn_rlof", "wind_capture" -- not `binary_prescription` values,
+# see scripts/run_paper1_experiment.py::VARIANT_OVERRIDES for how these
+# two resolve to a config), so this figure shows every mode Realta
+# currently implements. See docs/science/paper1-binary-interaction-
+# proposal.md for what each of the original five means quantitatively
+# -- "standard_interaction", "enhanced_interaction", and
+# "enhanced_mergers" use illustrative, not-paper-derived parameter
+# defaults (interaction_boost/p_merge/etc., see config.py), flagged
+# there and in docs/physics/interaction-prescriptions.md.
 binary_prescriptions:
   - single
   - non_interacting
   - standard_interaction
   - enhanced_interaction
   - enhanced_mergers
+  - post_sn_rlof
+  - wind_capture
