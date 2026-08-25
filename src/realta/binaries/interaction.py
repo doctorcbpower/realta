@@ -250,7 +250,7 @@ def find_rlof_onset(
     (Schaerer et al. 1993-based) used for the primary/secondary
     supernova timing elsewhere in `BinaryPopulation`. The two
     stellar-lifetime prescriptions are independently sourced and not
-    reconciled -- see docs/provenance.md. In practice this means a
+    reconciled -- see docs/physics/interaction-prescriptions.md. In practice this means a
     predicted RLOF event can, for a given binary, fall after that
     binary's Schaerer-table-based supernova already occurred; the
     caller (`BinaryPopulation.evolve()`) naturally suppresses such
@@ -458,7 +458,7 @@ def rejuvenate_ms_gainer(
     self-consistency with eq. 41, which is itself part of the same
     Hurley/Tout fitting-formula family) -- NOT Realta's separate,
     Schaerer-based `LifetimeTable` used elsewhere for the star's actual
-    supernova-triggering clock (see docs/provenance.md's "two
+    supernova-triggering clock (see docs/physics/interaction-prescriptions.md's "two
     independent lifetime prescriptions" note). Returns a dimensionless
     remaining-lifetime FRACTION (not an absolute time), for the caller
     to apply against whatever lifetime source it uses for absolute

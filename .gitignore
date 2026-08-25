@@ -9,3 +9,6 @@ output/
 notebooks/paper_output/
 dist/
 build/
+
+# Local planning/scoping docs -- kept on disk, not pushed to GitHub.
+docs/science/

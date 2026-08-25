@@ -14,7 +14,7 @@
 # both drive mergers through the real RLOF classifier
 # (use_rlof_classifier=True), differing in q_crit_ms (0.695 default vs
 # 0.4, config.py::_PRESCRIPTION_DEFAULTS) -- NOTE (see
-# docs/provenance.md Section 10's Xu et al. cross-check finding):
+# docs/physics/rlof-classifier.md's Xu et al. cross-check finding):
 # because find_rlof_onset's automatically-selected donor is almost
 # always the heavier star (q1>1, comfortably above either q_crit_ms
 # value), "standard" and "enhanced" may show a smaller separation than

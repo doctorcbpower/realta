@@ -123,7 +123,7 @@ def test_chabrier_sampling():
 
 def test_imf_slope_pinned_population_regression():
     """Numeric regression pin for a non-default imf_slope (A4), at
-    population-generation scale -- see docs/provenance.md's IMF row.
+    population-generation scale -- see docs/physics/binary-sampling.md.
     Values captured by an actual run, cross-checked for run-to-run
     determinism before being pinned, not hand-derived analytically,
     following tests/test_regression.py's own discipline.
