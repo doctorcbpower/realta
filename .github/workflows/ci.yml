@@ -2,13 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
@@ -26,10 +27,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install .[dev]
-          pip install mypy pytest-cov build
+          python -m pip install ".[dev]"
+          python -m pip install build
 
-      - name: Run Ruff (Linter & Formatter)
+      - name: Check Ruff version
+        run: |
+          which ruff
+          ruff --version
+
+      - name: Run Ruff
         run: |
           ruff check .
           ruff format --check .

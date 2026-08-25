@@ -53,13 +53,13 @@ def test_ms_radius_and_luminosity_monotonically_increase(mass):
     luminosities = [ms.ms_luminosity(mass, Z_SOLAR, lifetime * f) for f in fractions]
 
     for r_prev, r_next in pairwise(radii):
-        assert (
-            r_next > r_prev * 0.99
-        ), f"radius must not collapse across the MS for M={mass}: {radii}"
+        assert r_next > r_prev * 0.99, (
+            f"radius must not collapse across the MS for M={mass}: {radii}"
+        )
     for l_prev, l_next in pairwise(luminosities):
-        assert (
-            l_next > l_prev * 0.99
-        ), f"luminosity must not collapse across the MS for M={mass}: {luminosities}"
+        assert l_next > l_prev * 0.99, (
+            f"luminosity must not collapse across the MS for M={mass}: {luminosities}"
+        )
     # Sanity floor: never smaller than a tenth of the ZAMS radius --
     # catches the specific class of bug this session found (a
     # near-total collapse), without being so strict it rejects a
