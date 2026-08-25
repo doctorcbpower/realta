@@ -359,7 +359,12 @@ class BinaryPopulation:
             )
             if np.any(rlof_mask):
                 idx0 = np.where(rlof_mask)[0]
-                z = _IMETAL_TO_Z.get(self.config.imetal)
+                try:
+                    z = _IMETAL_TO_Z[self.config.imetal]
+                except KeyError as exc:
+                    raise ValueError(
+                        f"Unsupported metallicity index: {self.config.imetal}"
+                    ) from exc
                 for i in idx0:
                     self.rlof_processed[i] = True
                     if self.rlof_outcome[i] == RLOFOutcome.IMMEDIATE_MERGER:
@@ -488,18 +493,35 @@ class BinaryPopulation:
                             donor_mass, companion_mass = self.m1[i], self.m2[i]
                         else:
                             donor_mass, companion_mass = self.m2[i], self.m1[i]
-                        survives, new_donor, new_companion, new_a_rsun = (
+                        alpha_ce = self.config.alpha_ce
+                        lambda_ce = self.config.lambda_ce
+
+                        if alpha_ce is None:
+                            raise ValueError(
+                                "alpha_ce must be set for common-envelope evolution"
+                            )
+                        if lambda_ce is None:
+                            raise ValueError(
+                                "lambda_ce must be set for common-envelope evolution"
+                            )
+
+                        survives, new_donor, new_companion, ce_a_rsun = (
                             apply_common_envelope(
                                 donor_mass,
                                 companion_mass,
                                 self.a[i] * self.RSUN_PER_AU,
                                 z,
                                 self.rlof_time[i],
-                                alpha_ce=self.config.alpha_ce,
-                                lambda_ce=self.config.lambda_ce,
+                                alpha_ce=alpha_ce,
+                                lambda_ce=lambda_ce,
                             )
                         )
                         if survives:
+                            if ce_a_rsun is None:
+                                raise RuntimeError(
+                                    "Common-envelope calculation returned no separation "
+                                    "for a surviving binary"
+                                )
                             # Donor stripped to its bare core; companion
                             # unaffected; orbit tightened to a_f -- same
                             # full-reset lifetime-clock simplification
@@ -613,7 +635,11 @@ class BinaryPopulation:
                         and self.rlof_processed[i]
                         and self.rlof_outcome[i] == RLOFOutcome.STABLE_MASS_TRANSFER
                     )
-                    boost = self.config.interaction_boost if had_stable_mt else 1.0
+                    boost = (
+                        self.config.interaction_boost
+                        if had_stable_mt and self.config.interaction_boost is not None
+                        else 1.0
+                    )
                     fsur_eff = min(1.0, self.config.fsur * boost)
                     if self.m2[i] > mcomp_abs and self.np_rng.random() <= fsur_eff:
                         self.lum_xray[i] = self.xray_calc.get_lumx(

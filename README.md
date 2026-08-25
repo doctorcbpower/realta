@@ -130,9 +130,9 @@ from realta import ClusterSimulation, SimulationConfig
 
 config = SimulationConfig()
 
-config.ntot = 5000       # Total number of initial binary systems
-config.tmax = 12.0       # Maximum simulation time [Myr]
-config.iseed = 42        # Random seed
+config.ntot = 5000  # Total number of initial binary systems
+config.tmax = 12.0  # Maximum simulation time [Myr]
+config.iseed = 42  # Random seed
 
 cluster = ClusterSimulation(config)
 

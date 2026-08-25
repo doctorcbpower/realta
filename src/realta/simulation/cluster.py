@@ -36,9 +36,9 @@ class ClusterSimulation:
         # wired into run()'s per-timestep output alongside
         # lumx_tot/nphot_tot -- see run()'s own comments for why these
         # live here rather than inside BinaryPopulation.evolve().
-        self.ms_table = MSLuminosityTable(config.imetal, config.data_dir)
-        self.uv_table = UVLuminosityTable(config.imetal, config.data_dir)
-        self.ionizing_table = IonizingPhotonTable(config.data_dir)
+        self.ms_table = MSLuminosityTable(self.config.imetal, self.config.data_dir)
+        self.uv_table = UVLuminosityTable(self.config.imetal, self.config.data_dir)
+        self.ionizing_table = IonizingPhotonTable(self.config.data_dir)
 
     def initialize(self):
         logger.info("Initializing simulation...")
