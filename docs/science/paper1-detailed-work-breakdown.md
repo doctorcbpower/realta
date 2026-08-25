@@ -99,19 +99,20 @@ B is now fully complete except Hovis-Afflerbach's stripped-donor
 properties, which remain a deliberate, documented extension point only
 (per this item's own original scope, not a gap).
 
-**Still not done**:
+**Update, 2026-08-25 (later)**: C2 (Figure 4), C3 (Figure 3), and
+Figure 5 (metallicity sweep) are now all done -- see
+`docs/provenance.md` Section 14 for the full traceability of all
+three. The post-SN secondary RLOF channel (`config.use_post_sn_rlof`,
+below) and the wind-capture accretion model
+(`config.use_wind_capture`, `docs/provenance.md` Section 15) are also
+both done, including the wind-capture wiring into
+`BinaryPopulation.evolve()` -- this document's every originally-listed
+item, plus everything raised during its implementation, is now closed.
 
-- C2 (Figure 4, IMF/binary grid): not started -- blocked on A1 and A4,
-  both now done, so this is unblocked and ready to start.
-- C3 (Figure 3, mergers): not started -- blocked on B5's figure-side
-  work (the bookkeeping exists, the figure does not); B5 itself is done.
-- Figure 5 (metallicity sweep): not built as an actual figure yet,
-  though the underlying 3-preset `imetal` system this item relies on
-  is unchanged/available; C1 (which it's a cheap add-on to) is done.
-- ~~Adjacent finding from B3's implementation: CE survival incorrectly
-  reset the companion's lifetime clock~~ -- fixed (2026-08-25, by
-  explicit user decision: leave the companion's clock alone entirely,
-  not reset or rejuvenated). See `docs/provenance.md` Section 12.
+~~Adjacent finding from B3's implementation: CE survival incorrectly
+reset the companion's lifetime clock~~ -- fixed (2026-08-25, by
+explicit user decision: leave the companion's clock alone entirely,
+not reset or rejuvenated). See `docs/provenance.md` Section 12.
 
 **New finding, not on this document's original list -- now closed
 (RLOF piece), 2026-08-25**: the same session that closed out
@@ -128,8 +129,9 @@ channel onto the by-then-compact primary -- is now implemented
 (`config.use_post_sn_rlof`) -- see `docs/science/paper1-followup-prompt.md`
 (now updated) and `docs/provenance.md` Section 2 for the full writeup.
 Wind accretion, a genuinely separate channel raised by the user during
-that work, remains explicitly deferred pending its own literature-
-verification pass -- see the followup prompt's own updated note.
+that work, was implemented and then wired into `evolve()` in a later
+session (`config.use_wind_capture`) -- see the followup prompt's own
+updated note and `docs/provenance.md` Section 15.
 
 ## Workstream A -- independent of the interaction-model decisions
 

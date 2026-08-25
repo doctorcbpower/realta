@@ -11,43 +11,47 @@ per this prompt's own item 1's proposal step -- see that writeup for
 exactly what was cut (no wind-accretion trigger, no consequence model
 for the secondary's mass/envelope or the compact primary's mass).
 
-**Update, 2026-08-25: wind-accretion physics is now implemented as
-standalone modules, but NOT yet wired into `evolve()`.** The user
-provided both source papers directly (El Mellah & Casse 2017,
-arXiv:1609.01532; Friend & Castor 1982, ApJ 261, 293) and a detailed
-spec. Both pasted and read section-by-section before implementing --
-see `stellar/cak_wind.py` (CAK wind mass-loss rate/velocity law) and
-`binaries/wind_capture.py` (BHL-style accretion rate + circularization
-radius), and `docs/provenance.md` Section 15 for the full writeup,
-including three real transcription/derivation errors caught and fixed
-during implementation (two memorized-constant errors in the Eddington-
-luminosity calculation, one velocity-law mismatch, all caught by direct
-numerical cross-checks against Friend & Castor's own Vela X-1 data
-before being accepted). The circularization-radius formula is the one
-piece NOT verified against either paper (neither gives a closed-form
-fit) -- flagged as the lowest-confidence part of this addition.
+**Update, 2026-08-25: wind-accretion physics implemented as standalone
+modules.** The user provided both source papers directly (El Mellah &
+Casse 2017, arXiv:1609.01532; Friend & Castor 1982, ApJ 261, 293) and
+a detailed spec. Both pasted and read section-by-section before
+implementing -- see `stellar/cak_wind.py` (CAK wind mass-loss rate/
+velocity law) and `binaries/wind_capture.py` (BHL-style accretion rate
++ circularization radius), and `docs/provenance.md` Section 15 for the
+full writeup, including three real transcription/derivation errors
+caught and fixed during implementation (two memorized-constant errors
+in the Eddington-luminosity calculation, one velocity-law mismatch,
+all caught by direct numerical cross-checks against Friend & Castor's
+own Vela X-1 data before being accepted). The circularization-radius
+formula is the one piece NOT verified against either paper (neither
+gives a closed-form fit) -- flagged as the lowest-confidence part of
+this addition.
 
-Deliberately NOT wired into `BinaryPopulation.evolve()` yet -- built
-as standalone, independently-tested physics modules only, per the
-user's own "keep the prescription modular" framing. What's needed for
-that next step, not yet decided:
-- Does wind accretion replace, gate, or run alongside the existing
-  `fsur`/`use_post_sn_rlof` channels for a given binary?
-- How does `L_X` get computed from `Mdot_acc` -- a new
-  `eta*Mdot_acc*c^2`-style conversion (per Friend & Castor eq. 12-13),
-  or fed through the existing `xray_calc` luminosity-draw machinery?
-- Gating would be similar to the RLOF channel (`nturn==1`) but without
-  any Roche-lobe check -- just "secondary is MS-phase and above some
-  wind-relevant mass threshold" (`stellar/cak_wind.py`'s functions
-  need mass/luminosity/radius/alpha/Q/Gamma per donor -- luminosity
-  and radius are already available via
-  `main_sequence.ms_luminosity`/`ms_radius`; `alpha`/`Q`/`Gamma`
-  are the four CAK/Eddington shape parameters and would need sensible
-  defaults or new config fields, following the `Q_CRIT_MS`/`ALPHA_CE`
-  precedent of named, overridable constants).
+**Update, 2026-08-25 (later): now wired into `BinaryPopulation.evolve()`**
+(`config.use_wind_capture`, default `False`) -- the three open
+questions above are resolved as follows, see `docs/provenance.md`
+Section 15's "Wiring into `BinaryPopulation.evolve()`" row for the
+full writeup:
+- Runs ALONGSIDE `use_post_sn_rlof`, sharing the same Phase 1.5
+  `nturn==1` loop: wind-capture applies while the donor has NOT yet
+  filled its Roche lobe (`donor_radius < r_l2`), `use_post_sn_rlof`
+  takes over once it does (`donor_radius >= r_l2`) -- either flag
+  works independently, or both together give one continuous pipeline.
+- `L_X = eta*Mdot_acc*c^2`, reusing `xray/luminosity.py::XRayLuminosity.eta`
+  (0.1, a pre-existing but previously-unused attribute of the same
+  class that already supplies this branch's Eddington cap) rather than
+  a new efficiency parameter -- NOT fed through the stochastic
+  `xray_calc` luminosity-draw machinery, since a wind-fed accretion
+  rate is a deterministic consequence of the sampled donor/orbit
+  properties, not a separate activation probability.
+- Gating is exactly `nturn==1` plus the Roche-lobe check above (no
+  separate mass threshold needed) -- `wind_cak_alpha=0.55` and
+  `wind_cak_q_force=900.0` are the two new, overridable config fields
+  for the CAK shape parameters, following the `Q_CRIT_MS`/`ALPHA_CE`
+  precedent as anticipated.
 
 The original scoping text below (for what wind accretion would need,
-written before the papers were provided) is now superseded by the
+written before the papers were provided) is entirely superseded by the
 actual implementation above -- kept for the historical record of what
 was anticipated vs. what the papers actually gave.
 

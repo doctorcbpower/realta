@@ -5,6 +5,7 @@ import logging
 import numpy as np
 from scipy.stats import truncnorm
 
+from realta.binaries import wind_capture
 from realta.binaries.interaction import (
     RLOFOutcome,
     apply_common_envelope,
@@ -17,7 +18,7 @@ from realta.binaries.interaction import (
 from realta.config import SimulationConfig
 from realta.imf.factory import get_imf
 from realta.io.tables import IonizingPhotonTable, LifetimeTable, RemnantTable
-from realta.stellar import main_sequence
+from realta.stellar import cak_wind, main_sequence
 from realta.xray.luminosity import XRayLuminosity
 
 logger = logging.getLogger("realta")
@@ -628,26 +629,49 @@ class BinaryPopulation:
                     self.is_survived[i] = False
 
         # --- Phase 1.5: Post-SN secondary Roche-lobe overflow (opt-in,
-        # config.use_post_sn_rlof) ---
-        # docs/science/paper1-followup-prompt.md. Inert when disabled
-        # (mask never matches, since it's gated on the config flag
-        # itself), so it cannot perturb the pre-existing baseline.
-        # Checked every timestep (not precomputed like Phase 0's
-        # rlof_time) because the secondary's radius grows continuously
-        # and the trigger is a live comparison against its own Roche
-        # lobe -- matching the existing SN1/SN2 phases' own live-check
-        # style, not Phase 0's precompute-once pattern (which needs a
-        # root-finder because Phase 0 must know the crossing time in
-        # advance to place it correctly relative to nturn transitions;
-        # here nturn==1 is already the gate, so no such ordering
-        # problem exists).
-        if self.config.use_post_sn_rlof:
+        # config.use_post_sn_rlof) and wind-capture accretion (opt-in,
+        # config.use_wind_capture) ---
+        # docs/science/paper1-followup-prompt.md. Inert when both are
+        # disabled (mask never matches, since it's gated on the config
+        # flags themselves), so it cannot perturb the pre-existing
+        # baseline. Checked every timestep (not precomputed like Phase
+        # 0's rlof_time) because the secondary's radius grows
+        # continuously and the trigger is a live comparison against its
+        # own Roche lobe -- matching the existing SN1/SN2 phases' own
+        # live-check style, not Phase 0's precompute-once pattern
+        # (which needs a root-finder because Phase 0 must know the
+        # crossing time in advance to place it correctly relative to
+        # nturn transitions; here nturn==1 is already the gate, so no
+        # such ordering problem exists).
+        #
+        # Both channels share the same donor-phase/radius/Roche-lobe
+        # setup, so they're evaluated in a single loop: once the donor
+        # fills its Roche lobe (donor_radius >= r_l2), use_post_sn_rlof
+        # takes over with certain activation (real Roche-lobe
+        # accretion); before that, use_wind_capture (if enabled)
+        # estimates a physical wind-capture accretion luminosity for
+        # the still-detached donor. This mutual-exclusivity by
+        # donor_radius vs. r_l2 is also what gives the "smoothly
+        # approach RLOF as the donor fills its critical lobe" behaviour
+        # the wind-capture model was scoped to have (chat, 2026-08-25):
+        # the CAK wind velocity at the orbital separation,
+        # cak_wind.wind_velocity(a, donor_radius, v_inf), falls as
+        # donor_radius grows toward the separation, which raises the
+        # wind-capture accretion fraction (binaries/
+        # wind_capture.py::bhl_accretion_fraction ~ 1/v_rel^2) right up
+        # until use_post_sn_rlof's own discrete hand-off -- not a
+        # separate, hand-tuned enhancement term.
+        if self.config.use_post_sn_rlof or self.config.use_wind_capture:
             z2 = _IMETAL_TO_Z.get(self.config.imetal)
             if z2 is None:
                 logger.warning(
-                    "use_post_sn_rlof=True but imetal=%s (Z=0): the "
-                    "Hurley/Tout stellar formulae are undefined at Z=0 "
-                    "-- skipping post-SN secondary RLOF for this run.",
+                    "use_post_sn_rlof=%s / use_wind_capture=%s but "
+                    "imetal=%s (Z=0): the Hurley/Tout stellar formulae "
+                    "are undefined at Z=0 -- skipping both post-SN "
+                    "secondary RLOF and wind-capture accretion for "
+                    "this run.",
+                    self.config.use_post_sn_rlof,
+                    self.config.use_wind_capture,
                     self.config.imetal,
                 )
             else:
@@ -667,8 +691,14 @@ class BinaryPopulation:
                                 donor_radius = main_sequence.ms_radius(
                                     self.m2[i], z2, tnow
                                 )
+                                donor_luminosity = main_sequence.ms_luminosity(
+                                    self.m2[i], z2, tnow
+                                )
                             else:
                                 donor_radius = main_sequence.hg_radius(
+                                    self.m2[i], z2, tnow
+                                )
+                                donor_luminosity = main_sequence.hg_luminosity(
                                     self.m2[i], z2, tnow
                                 )
                         except ValueError:
@@ -678,8 +708,10 @@ class BinaryPopulation:
                             # PHASE_NOT_MODELLED handling).
                             continue
                         q2 = self.m2[i] / self.m1[i]
-                        r_l2 = roche_lobe_radius(self.a[i] * self.RSUN_PER_AU, q2)
-                        if donor_radius >= r_l2:
+                        a_rsun = self.a[i] * self.RSUN_PER_AU
+                        r_l2 = roche_lobe_radius(a_rsun, q2)
+
+                        if self.config.use_post_sn_rlof and donor_radius >= r_l2:
                             self.lum_xray[i] = self.xray_calc.get_lumx(
                                 self.m1[i],
                                 self.m2[i],
@@ -687,6 +719,78 @@ class BinaryPopulation:
                                 self.a[i],
                                 rng=self.np_rng,
                             )
+                        elif self.config.use_wind_capture and donor_radius < r_l2:
+                            try:
+                                gamma = cak_wind.eddington_factor(
+                                    self.m2[i], donor_luminosity
+                                )
+                                mdot_wind = cak_wind.wind_mass_loss_rate(
+                                    self.m2[i],
+                                    donor_luminosity,
+                                    self.config.wind_cak_alpha,
+                                    self.config.wind_cak_q_force,
+                                    gamma,
+                                )
+                                v_inf = cak_wind.wind_terminal_velocity(
+                                    self.m2[i], donor_radius, self.config.wind_cak_alpha
+                                )
+                                v_wind_a = cak_wind.wind_velocity(
+                                    a_rsun, donor_radius, v_inf
+                                )
+                                if v_wind_a <= 0.0:
+                                    # Donor radius >= separation --
+                                    # should not occur given
+                                    # donor_radius < r_l2 (the Roche
+                                    # lobe is always well inside the
+                                    # separation), guarded for safety.
+                                    continue
+                                v_orbital = (
+                                    cak_wind.G_MSUN_RSUN_KM2_S2
+                                    * (self.m1[i] + self.m2[i])
+                                    / a_rsun
+                                ) ** 0.5
+                                v_rel = wind_capture.relative_wind_velocity(
+                                    v_wind_a, v_orbital
+                                )
+                                r_acc = wind_capture.accretion_radius(self.m1[i], v_rel)
+                                beta = wind_capture.bhl_accretion_fraction(
+                                    r_acc, a_rsun
+                                )
+                                mdot_acc_msun_yr = wind_capture.wind_capture_rate(
+                                    mdot_wind, beta
+                                )
+                            except ValueError:
+                                # gamma (donor Eddington factor) outside
+                                # (0,1), or some other input the
+                                # underlying CAK/capture formulae reject
+                                # as unphysical -- not modelled, skip
+                                # (same PHASE_NOT_MODELLED-style
+                                # handling as the ValueError guard above).
+                                continue
+                            mdot_acc_g_s = (
+                                mdot_acc_msun_yr * cak_wind.MSUN_G / cak_wind.YEAR_S
+                            )
+                            # Standard accretion-luminosity relation,
+                            # L_acc = eta*Mdot*c^2, reusing
+                            # xray/luminosity.py::XRayLuminosity.eta
+                            # (0.1, a pre-existing but previously-unused
+                            # attribute of the same class already
+                            # providing this run's Eddington cap below)
+                            # rather than introducing a second,
+                            # redundant efficiency parameter.
+                            l_acc_erg_s = (
+                                self.xray_calc.eta * mdot_acc_g_s * cak_wind.C_CGS**2
+                            )
+                            # self.lum_xray is stored lunit-normalized
+                            # throughout this module (see Phase 3 below)
+                            # -- xray_calc.eddington_luminosity is
+                            # already in those same units, so used
+                            # directly as the cap, consistent with how
+                            # the stochastic fsur/RLOF draws above are
+                            # bounded.
+                            l_acc_norm = l_acc_erg_s / self.config.lunit
+                            ledd_norm = self.xray_calc.eddington_luminosity(self.m1[i])
+                            self.lum_xray[i] = min(l_acc_norm, ledd_norm)
 
         # --- Phase 2: Secondary Supernova Transitions ---
         # Triggers ONLY when secondary star completes lifetime (tnow >= t2_lifetime)
