@@ -154,7 +154,7 @@ def main():
         ax.set_yscale("log")
         ax.set_xlabel("Time (Myr)")
         ax.set_title(
-            f"$D={D:.2f}$ dex, snapshot diff $={rel_diff*100:.0f}\\%$", fontsize=11
+            f"$D={D:.2f}$ dex, snapshot diff $={rel_diff * 100:.0f}\\%$", fontsize=11
         )
         ax.legend(loc="lower right", frameon=False)
         ax.grid(alpha=0.3, which="both", linestyle=":")
@@ -177,7 +177,7 @@ def main():
         )
         for D, rel_diff, a, b in pairs[:15]:
             f.write(
-                f"D={D:.3f} dex  snap_diff={rel_diff*100:.1f}%  "
+                f"D={D:.3f} dex  snap_diff={rel_diff * 100:.1f}%  "
                 f"A=(alpha={a['alpha']:.3f}, fbin={a['fbin']:.3f}, Rx({T_REF:.0f})={a['rx_ref']:.3f})  "
                 f"B=(alpha={b['alpha']:.3f}, fbin={b['fbin']:.3f}, Rx({T_REF:.0f})={b['rx_ref']:.3f})\n"
             )
