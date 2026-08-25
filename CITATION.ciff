@@ -1,0 +1,52 @@
+cff-version: 1.2.0
+message: "If you use realta, please cite this software release."
+type: software
+title: "realta: a Monte Carlo stellar and binary population-synthesis framework"
+version: "0.1.0"
+doi: "https://doi.org/10.5281/zenodo.22090647"
+authors:
+  - family-names: Power
+    given-names: Chris
+    orcid: "https://orcid.org/0000-0002-4003-0904"
+repository-code: "https://github.com/doctorcbpower/realta"
+license: MIT
+keywords:
+  - stellar populations
+  - binary evolution
+  - high-mass X-ray binaries
+  - population synthesis
+  - X-ray binaries
+references:
+  - type: article
+    authors:
+      - family-names: Power
+        given-names: C.
+      - family-names: Wynn
+        given-names: G. A.
+      - family-names: Combet
+        given-names: C.
+      - family-names: Wilkinson
+        given-names: M. I.
+    title: "Primordial globular clusters, X-ray binaries and cosmological reionization"
+    journal: "MNRAS"
+    volume: 395
+    start: 1146
+    end: 1152
+    year: 2009
+    doi: "10.1111/j.1365-2966.2009.14628.x"
+  - type: article
+    authors:
+      - family-names: Power
+        given-names: C.
+      - family-names: James
+        given-names: G.
+      - family-names: Combet
+        given-names: C.
+      - family-names: Wynn
+        given-names: G.
+    title: "Feedback from High-mass X-ray Binaries on the High-redshift Intergalactic Medium: Model Spectra"
+    journal: "ApJ"
+    volume: 764
+    start: 76
+    year: 2013
+    doi: "10.1088/0004-637X/764/1/76"
