@@ -530,7 +530,7 @@ class BinaryPopulation:
                                 self.m1[i], self.m2[i] = new_donor, new_companion
                             else:
                                 self.m2[i], self.m1[i] = new_donor, new_companion
-                            self.a[i] = new_a_rsun / self.RSUN_PER_AU
+                            self.a[i] = ce_a_rsun / self.RSUN_PER_AU
                             mtot = new_donor + new_companion
                             self.period[i] = self.PFAC * np.sqrt(
                                 (self.a[i] ** 3) / mtot
