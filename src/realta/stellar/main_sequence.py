@@ -8,7 +8,7 @@ and coefficient machinery it depends on.
 
 Hertzsprung-Gap (k=2) and later phases are deliberately NOT
 implemented here -- see docs/science/rlof-ce-classifier-proposal.md
-and docs/provenance.md for why: HG's radius formula (eq. 27) requires
+and docs/physics/stellar-tracks.md for why: HG's radius formula (eq. 27) requires
 the giant-branch radius-luminosity relation (eq. 44-48), whose
 coefficients (b1, b4-b7) could not be transcribed with confidence from
 the source PDF (a repeated-digit anomaly was found across supposedly-

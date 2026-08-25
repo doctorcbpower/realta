@@ -1,7 +1,7 @@
 """Numeric regression test pinning the Power et al. (2009) baseline output.
 
 Closes the "no numeric regression test" gap flagged in
-docs/provenance.md's "Known gaps" section: `test_reference_cluster_run`
+docs/known-gaps.md: `test_reference_cluster_run`
 below only checked that a run didn't crash or produce NaNs, so nothing
 protected the ported physics (SN survival, HMXB activation, X-ray
 luminosity, ionising photon rate) from silent drift under refactoring.
@@ -11,7 +11,7 @@ generation summary stats, for a fixed config and iseed, against values
 captured by an actual run (see the values below -- generated and cross-
 checked for run-to-run determinism before being pinned; not hand-derived
 analytically). A run is fully deterministic for a fixed `iseed` (see
-docs/provenance.md Section 5, "Random number generation") -- if this
+docs/provenance.md Section 4, "Random number generation") -- if this
 test fails, either a real bug was introduced, or a deliberate change to
 the ported physics was made and these pinned values need updating
 *with an explicit note on what changed and why*, per the brief's
@@ -120,7 +120,7 @@ def test_reference_cluster_run():
 def test_run_is_deterministic_for_fixed_seed():
     """A fixed iseed must reproduce bit-identical output across runs.
 
-    This is the actual claim docs/provenance.md Section 5 makes (single
+    This is the actual claim docs/provenance.md Section 4 makes (single
     seeded np.random.Generator threaded through population generation,
     SN survival, HMXB activation, and XRayLuminosity.get_lumx) -- distinct
     from test_reference_cluster_run_pinned_trajectory, which pins *what*

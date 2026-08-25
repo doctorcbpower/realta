@@ -4,7 +4,7 @@ silently breaking due to an API change elsewhere (e.g. RLOFOutcome
 values, apply_common_envelope's signature, BinaryPopulation.RSUN_PER_AU).
 Not a numeric regression pin: the script's whole point is a one-off
 literature comparison (see its own module docstring and
-docs/provenance.md Section 10 for the actual result and discussion),
+docs/physics/rlof-classifier.md for the actual result and discussion),
 not a physics path whose exact output fractions should be pinned here.
 """
 

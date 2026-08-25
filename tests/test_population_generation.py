@@ -1,6 +1,6 @@
 """Unit tests for BinaryPopulation.generate_population()'s orbital
 parameters (period, semi-major axis) -- closes the gap noted in
-docs/provenance.md: these never feed `floss`/survival, so they are the
+docs/provenance.md Section 1: these never feed `floss`/survival, so they are the
 one part of population generation the pinned integration test
 (tests/test_regression.py) genuinely cannot see (a bug here would not
 move `lumx_tot`/`nphot_tot`/`nactive`/`ndead` at all).

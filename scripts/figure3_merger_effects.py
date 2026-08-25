@@ -19,7 +19,7 @@ showing both:
       built from BinaryPopulation.merge_time (set for every merger,
       whether from the formation-time p_merge channel or an
       RLOF-classifier-driven IMMEDIATE_MERGER/CE-merge event -- see
-      docs/provenance.md Section 6), and cumulative `ndead` (both
+      docs/physics/interaction-prescriptions.md), and cumulative `ndead` (both
       stars now compact remnants) from `results` directly, since
       Realta has no explicit WD/NS/BH type classifier to draw a finer
       compact-object census from (a named scope limitation, not
