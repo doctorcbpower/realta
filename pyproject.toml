@@ -23,7 +23,7 @@ realta = "realta.cli:main"
 dev = [
     "pytest>=7.0",
     "pytest-cov",
-    "ruff",
+    "ruff==0.15.20",
     "mypy",
     "pre-commit",
 ]
