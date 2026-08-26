@@ -35,9 +35,8 @@ class BinaryPopulation:
 
     The core Monte Carlo engine, based on the coeval globular-cluster
     HMXB population model of Power et al. (2009) -- see
-    docs/provenance.md for the ported-baseline paper-equation ->
-    implementation -> test traceability table, and docs/physics/ for
-    physics added beyond it.
+        docs/provenance.md for the ported baseline paper equations
+        docs/physics/ -> physical models
     """
 
     PFAC = 365.229126
@@ -49,21 +48,9 @@ class BinaryPopulation:
     # Rsun (which would put the Earth inside the Sun). PFAC=365.229126
     # itself is essentially the number of days in a sidereal year --
     # i.e. these constants encode Kepler's third law in the standard
-    # P(yr)^2 = a(AU)^3/M(Msun) astronomical convention, the same one
-    # Power et al.'s original Fortran uses (see docs/provenance.md's
-    # semi-major-axis row for the ~1% precision-convention note on
-    # AFAC itself).
-    #
-    # binaries/interaction.py's RLOF/CE module (added this session) was
-    # built and unit-tested entirely with hand-picked Rsun-scale
-    # separations -- it compares `separation` directly against donor/
-    # companion radii from the Hurley/Tout stellar-radius fits, which
-    # are explicitly in Rsun. Passing `self.a` (AU) into it unconverted
-    # made every donor look ~215x closer to its Roche lobe than it
-    # really is -- see docs/physics/rlof-classifier.md's units note.
-    # RSUN_PER_AU converts at that boundary -- self.a itself STAYS in
-    # AU everywhere else (the SN1 mass-loss orbit-widening code below,
-    # and every existing pinned regression value, is untouched).
+    # P(yr)^2 = a(AU)^3/M(Msun) astronomical convention (see
+    # docs/provenance.md's semi-major-axis row for the ~1% precision
+    # convention note on AFAC itself).
     #
     # 1 au = 1.495978707e11 m (IAU 2012 exact definition); R_sun =
     # 6.957e8 m (IAU 2015 nominal solar radius) -> ratio = 215.032.
@@ -142,34 +129,24 @@ class BinaryPopulation:
         m1 = raw_masses[mask_massive]
         n_massive = len(m1)
 
-        # Primordial binary fraction (A1, docs/science/paper1-detailed-
-        # work-breakdown.md): binary_fraction=1.0 (default) reproduces
+        # Primordial binary fraction: binary_fraction=1.0 (default) reproduces
         # the pre-existing Power et al. (2009) baseline exactly (every
-        # M >= mcut star paired, Sec. 2.1) -- the RNG draw below is
+        # M >= mcut star paired, Sec. 2.1) - the RNG draw below is
         # skipped entirely in that case, not drawn-and-discarded, so
         # the RNG stream is untouched by default (same pattern as
-        # p_merge==0 below). `fsur` is NOT a formation-time filter: it
-        # is applied once, later, as the HMXB activation probability at
-        # primary supernova (see evolve()).
+        # p_merge==0 below). `fsur` is applied once as the HMXB
+        # activation probability at primary supernova (see evolve()).
         #
-        # "single" prescription (see
-        # docs/science/paper1-binary-interaction-proposal.md): forces
-        # no companion for any massive star (has_companion all False),
-        # regardless of any separately-configured binary_fraction --
-        # unlike every other prescription, m1 stays fully populated
-        # (not emptied to n_massive=0, as this prescription used to do
-        # before A3). Emptying the array was a reasonable shortcut
-        # while the only things computed from m1 were L_X/HMXB-related
-        # (correctly zero for single stars either way), but A3's
-        # massive-star Q_H(t) also reads m1/nturn to know which
-        # massive stars exist -- with an empty array it would (and, in
-        # an intervening version of this code, briefly did) see none
-        # at all and silently report Q_H=0 for single-star populations,
+        # "single" prescription : forces no companion for any massive star
+        # (has_companion all False), regardless of any separately configured
+        # binary fraction -- unlike every other prescription, m1 stays fully
+        # populated (not emptied to n_massive=0). This is because Q_H(t) reads
+        # m1/nturn to know which massive stars exist -- with an empty array it
+        # would see none at all and silently report Q_H=0 for single-star populations,
         # which is physically wrong: massive stars ionize regardless of
         # binarity. Migrating "single" onto the same has_companion
-        # mechanism A1 already built fixes this for free -- L_X/HMXB
-        # activation stay exactly zero (m2=0 blocks that unconditionally,
-        # same as before), but L_bol/Q_H tracking now works correctly.
+        # mechanism fixes this -- L_X/HMXB activation stay exactly zero
+        # (m2=0 blocks that unconditionally) and L_bol/Q_H tracking works correctly.
         if cfg.binary_prescription == "single":
             has_companion = np.zeros(n_massive, dtype=bool)
         elif cfg.binary_fraction >= 1.0:
@@ -229,8 +206,7 @@ class BinaryPopulation:
         # primary (rejuvenating it -- its lifetime is recomputed below
         # from the merged mass) and permanently zeroed out, which is
         # sufficient on its own to keep it out of the HMXB channel in
-        # evolve() (activation there requires m2 > |mcomp|). See the
-        # proposal doc for why this is NOT paper-derived physics.
+        # evolve() (activation there requires m2 > |mcomp|).
         # p_merge == 0 is every prescription's default except
         # enhanced_mergers -- skip the RNG draw entirely in that case
         # rather than drawing-and-discarding, so the RNG stream (and
@@ -343,11 +319,10 @@ class BinaryPopulation:
         """
         mcomp_abs = abs(self.config.mcomp)
 
-        # --- Phase 0: MS Roche-lobe overflow (opt-in, use_rlof_classifier) ---
+        # --- MS Roche-lobe overflow (opt-in, use_rlof_classifier) ---
         # Inert when disabled (rlof_time all inf -> mask never matches).
-        # See docs/science/rlof-ce-classifier-proposal.md. Gated on
-        # nturn == 0 (neither star has had its primary SN yet, per
-        # Realta's own -- independently sourced -- LifetimeTable): a
+        # See docs/science/rlof-ce-classifier-proposal.md. Depends on
+        # nturn == 0 (neither star has had its primary SN yet from LifetimeTable) - a
         # predicted RLOF event whose time falls after this binary's own
         # supernova already occurred is naturally suppressed rather
         # than retroactively applied, since the two stellar-lifetime
@@ -376,7 +351,7 @@ class BinaryPopulation:
                         # lifetime clock for the merged mass starting
                         # now -- a full-reset simplification, not
                         # partial (Tout et al. 1997/Brček et al.
-                        # 2026) rejuvenation; see the proposal doc.
+                        # 2026) rejuvenation.
                         merged_mass = merge_stellar_masses(self.m1[i], self.m2[i])
                         self.m1[i] = merged_mass
                         self.m2[i] = 0.0
@@ -390,8 +365,6 @@ class BinaryPopulation:
                         # Instantaneous conservative transfer to the new
                         # detachment point -- see
                         # binaries/interaction.py::apply_stable_mass_transfer
-                        # and the proposal doc's "Decision" on
-                        # instantaneous vs. rate-integrated treatment.
                         if self.rlof_donor_is_star1[i]:
                             donor_mass, companion_mass = self.m1[i], self.m2[i]
                         else:
@@ -433,8 +406,7 @@ class BinaryPopulation:
                         # verified response/rejuvenation prescription
                         # for a mass-LOSING MS/HG donor is applied here.
                         # Companion's (gainer's) lifetime clock:
-                        # rejuvenated via Tout et al. (1997) eq. 41 (B3,
-                        # docs/science/paper1-detailed-work-breakdown.md)
+                        # rejuvenated via Tout et al. (1997) eq. 41
                         # instead of a full reset -- see
                         # binaries/interaction.py::rejuvenate_ms_gainer
                         # -- but only when the companion is genuinely
@@ -543,15 +515,7 @@ class BinaryPopulation:
                             # CE (apply_common_envelope's own
                             # docstring: "the companion is unaffected")
                             # -- its lifetime clock is left entirely
-                            # untouched here, not reset. A reset would
-                            # incorrectly de-age it (pretend it just
-                            # formed anew at tnow) despite nothing
-                            # having physically happened to it -- found
-                            # while implementing B3's rejuvenation fix
-                            # for STABLE_MASS_TRANSFER (a related but
-                            # distinct issue: that companion genuinely
-                            # gains mass, this one doesn't change at
-                            # all), see docs/physics/mass-transfer.md.
+                            # untouched here, not reset.
                             if self.rlof_donor_is_star1[i]:
                                 self.turnoff_time[i] = (
                                     tnow + self.lifetime_table.get_lifetime(self.m1[i])
@@ -576,7 +540,7 @@ class BinaryPopulation:
                             )
                             self.t2_lifetime[i] = 0.0
 
-        # --- Phase 1: Primary Supernova Transitions ---
+        # --- Primary Supernova Transitions ---
         # Triggers when system is on MS (nturn == 0) and tnow exceeds primary lifetime
         sn1_mask = (
             (self.nturn == 0) & (tnow >= self.turnoff_time) & (self.turnoff_time > 0.0)
@@ -614,10 +578,7 @@ class BinaryPopulation:
                     # and held fixed for the rest of the binary's active
                     # HMXB lifetime -- it is NOT redrawn every timestep.
                     #
-                    # interaction_boost multiplies fsur, but -- since
-                    # the reconciliation with the physics-based RLOF
-                    # classifier (docs/science/rlof-ce-classifier-
-                    # proposal.md "Decision 3") -- ONLY for binaries
+                    # interaction_boost multiplies fsur, but only for binaries
                     # that the classifier actually found underwent
                     # stable mass transfer on the MS (a genuine
                     # interaction event), not unconditionally for every
@@ -625,11 +586,9 @@ class BinaryPopulation:
                     # version. interaction_boost is 1.0 (no effect) for
                     # every prescription except standard_interaction/
                     # enhanced_interaction, and rlof_outcome is always
-                    # DETACHED when use_rlof_classifier=False (every
-                    # other prescription's default), so this does not
+                    # DETACHED when use_rlof_classifier=False, so this does not
                     # perturb the pre-existing baseline -- see
-                    # docs/physics/interaction-prescriptions.md for the old-vs-new
-                    # pinned values for the three affected prescriptions.
+                    # docs/physics/interaction-prescriptions.md.
                     had_stable_mt = (
                         self.config.use_rlof_classifier
                         and self.rlof_processed[i]
@@ -652,21 +611,16 @@ class BinaryPopulation:
                 else:
                     self.is_survived[i] = False
 
-        # --- Phase 1.5: Post-SN secondary Roche-lobe overflow (opt-in,
+        # --- Post-SN secondary Roche-lobe overflow (opt-in,
         # config.use_post_sn_rlof) and wind-capture accretion (opt-in,
-        # config.use_wind_capture) ---
-        # docs/science/paper1-followup-prompt.md. Inert when both are
+        # config.use_wind_capture) --- Inert when both are
         # disabled (mask never matches, since it's gated on the config
         # flags themselves), so it cannot perturb the pre-existing
         # baseline. Checked every timestep (not precomputed like Phase
         # 0's rlof_time) because the secondary's radius grows
         # continuously and the trigger is a live comparison against its
         # own Roche lobe -- matching the existing SN1/SN2 phases' own
-        # live-check style, not Phase 0's precompute-once pattern
-        # (which needs a root-finder because Phase 0 must know the
-        # crossing time in advance to place it correctly relative to
-        # nturn transitions; here nturn==1 is already the gate, so no
-        # such ordering problem exists).
+        # live-check style).
         #
         # Both channels share the same donor-phase/radius/Roche-lobe
         # setup, so they're evaluated in a single loop: once the donor
@@ -674,11 +628,7 @@ class BinaryPopulation:
         # takes over with certain activation (real Roche-lobe
         # accretion); before that, use_wind_capture (if enabled)
         # estimates a physical wind-capture accretion luminosity for
-        # the still-detached donor. This mutual-exclusivity by
-        # donor_radius vs. r_l2 is also what gives the "smoothly
-        # approach RLOF as the donor fills its critical lobe" behaviour
-        # the wind-capture model was scoped to have (chat, 2026-08-25):
-        # the CAK wind velocity at the orbital separation,
+        # the still-detached donor. The CAK wind velocity at the orbital separation,
         # cak_wind.wind_velocity(a, donor_radius, v_inf), falls as
         # donor_radius grows toward the separation, which raises the
         # wind-capture accretion fraction (binaries/
@@ -806,7 +756,7 @@ class BinaryPopulation:
                                 self.xray_calc.eta * mdot_acc_g_s * cak_wind.C_CGS**2
                             )
                             # self.lum_xray is stored lunit-normalized
-                            # throughout this module (see Phase 3 below)
+                            # throughout this module
                             # -- xray_calc.eddington_luminosity is
                             # already in those same units, so used
                             # directly as the cap, consistent with how
@@ -816,7 +766,7 @@ class BinaryPopulation:
                             ledd_norm = self.xray_calc.eddington_luminosity(self.m1[i])
                             self.lum_xray[i] = min(l_acc_norm, ledd_norm)
 
-        # --- Phase 2: Secondary Supernova Transitions ---
+        # --- Secondary Supernova Transitions ---
         # Triggers ONLY when secondary star completes lifetime (tnow >= t2_lifetime)
         sn2_mask = (self.nturn == 1) & (tnow >= self.turnoff_time)
         if np.any(sn2_mask):
@@ -828,7 +778,7 @@ class BinaryPopulation:
                 self.is_survived[i] = False
                 self.lum_xray[i] = 0.0
 
-        # --- Phase 3: Aggregate observables ---
+        # --- Aggregate observables ---
         # self.lum_xray already holds each active HMXB's persistent
         # luminosity (drawn once, at activation, in Phase 1 above) --
         # sum as-is rather than redrawing every timestep.

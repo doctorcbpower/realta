@@ -1,19 +1,18 @@
 """Roche-lobe-overflow (RLOF) outcome classifier.
 
-Stage 2 of the RLOF/CE module described in
-docs/science/rlof-ce-classifier-proposal.md. Given a binary's masses,
-separation and metallicity, and the donor's age, this classifies
-whether Roche-lobe overflow is occurring and, if so, what the outcome
-is -- for MS (k=0,1) and HG (k=2, within `stellar/main_sequence.py`'s
-supported mass range) donors. GB (k=3) and later phases remain out of
-scope; see that module's docstring.
+See docs/science/rlof-ce-classifier-proposal.md. 
+
+Given a binary's masses, separation and metallicity, and the donor's age, 
+this classifies whether Roche-lobe overflow is occurring and, if so, what 
+the outcome is -- for MS (k=0,1) and HG (k=2, within `stellar/main_sequence.py`'s
+supported mass range) donors. ***GB (k=3) needs to be added.***
 
 Source: Hurley, Tout & Pols (2002, MNRAS 329, 897), hereafter HTP02.
 
-Scope-driven simplification: HTP02's common-envelope-eligible donor
-list (Section 2.7.1: "at the onset of RLOF where mass is transferred
+Simplification: HTP02's common envelope eligible donor list 
+(Section 2.7.1: "at the onset of RLOF where mass is transferred
 from a giant (k1 in {2,3,4,5,6,8,9}) ... to a main-sequence star") does
-NOT include MS donors (k1 in {0,1}). A dynamically unstable MS donor
+not include MS donors (k1 in {0,1}). A dynamically unstable MS donor
 therefore merges directly (Section 2.6.4: "mass transfer to a
 companion proceeds dynamically if q1>0.695 ... only a single star
 remains") rather than forming a common envelope. HG donors ARE
@@ -22,19 +21,17 @@ IMMEDIATE_MERGER) for a dynamically unstable HG donor, using
 `hg_q_crit` (HTP02's own GB q_crit formula, reused for HG per Zuo &
 Li 2014). The CE outcome itself (survive vs. merge, and the resulting
 mass/orbit) is not resolved here -- that needs the alpha-lambda
-energy-balance solve (HTP02 eqs. 69-77), not yet implemented; see the
-proposal doc.
+energy-balance solve (HTP02 eqs. 69-77). ***Not yet implemented***.
 
-Emergent finding (`find_rlof_onset` below): because the Eggleton
-Roche-lobe fraction R_L1/a increases monotonically with the donor's
-own mass ratio q1, `IMMEDIATE_MERGER` dominates in practice over
+Because the Eggleton Roche-lobe fraction R_L1/a increases monotonically 
+with the donor's own mass ratio q1, `IMMEDIATE_MERGER` dominates in practice over
 `STABLE_MASS_TRANSFER` for automatically-detected MS-MS donors -- the
 star that reaches its (proportionally larger) Roche lobe first is
 almost always the more massive one, so q1 > 1 > Q_CRIT_MS for the
 detected donor in most configurations. `classify_rlof()` itself still
 returns `STABLE_MASS_TRANSFER` correctly when a low-q1 donor is
 specified directly; this is about which donor `find_rlof_onset`
-actually selects, not a bug in the classification itself -- see
+actually selects. Tested in 
 `tests/test_rlof_classifier.py::test_find_rlof_onset_favours_the_more_massive_star_as_donor`.
 """
 
@@ -50,16 +47,12 @@ from realta.stellar import giant_branch, main_sequence, remnant
 # HTP02 Section 2.6.4: critical mass ratio (q1 = M_donor/M_companion)
 # above which mass transfer from a main-sequence donor proceeds on a
 # dynamical time-scale, ending in a single merged star. Stated there
-# specifically for deeply-convective k1=0 donors; extended here, as a
-# named simplification, to radiative k1=1 donors too -- see the
-# proposal doc's "Decision 2" for why. Exposed as a parameter (not a
-# buried constant) so it can be overridden/recalibrated.
+# specifically for deeply-convective k1=0 donors; extended here to
+# radiative k1=1 donors too. Parameter that can be overridden/recalibrated.
 Q_CRIT_MS = 0.695
 
 # Common-envelope efficiency and binding-energy parameter (HTP02 eqs.
-# 69-73). Decided (chat, 2026-08-24) after a literature review -- see
-# docs/science/rlof-ce-classifier-proposal.md's "Literature findings"
-# note: ALPHA_CE=0.9 is Zuo & Li (2014, MNRAS 442, 1980)'s own
+# 69-73). ALPHA_CE=0.9 is Zuo & Li (2014, MNRAS 442, 1980)'s own
 # basic-model value, sitting in the middle of their HMXB-population-
 # calibrated 0.8-1.0 preferred range (a materially better-targeted
 # source than HTP02's own generic "alpha_CE~=1 is used"). LAMBDA_CE=0.5
@@ -67,8 +60,7 @@ Q_CRIT_MS = 0.695
 # not a true constant, and its accepted value here is entangled with
 # Zuo & Li's alpha_CE range (their own caveat: differing core-boundary
 # definitions can shift lambda by up to two orders of magnitude, which
-# would shift the implied alpha_CE too). Both exposed as named,
-# overridable parameters, not buried constants.
+# would shift the implied alpha_CE too).
 ALPHA_CE = 0.9
 LAMBDA_CE = 0.5
 
@@ -76,16 +68,8 @@ LAMBDA_CE = 0.5
 class RLOFOutcome(str, Enum):
     """Roche-lobe-overflow classification outcome.
 
-    numpy gotcha, confirmed empirically during this module's
-    development: scalar comparison (`some_outcome == RLOFOutcome.X`,
-    including `array[i] == RLOFOutcome.X` for a single element pulled
-    out of an object-dtype array) works correctly, but a *vectorized*
-    comparison of a whole numpy object array against a bare member
-    (`array_of_outcomes == RLOFOutcome.X`) silently returns all-False
-    even when every element genuinely equals it -- numpy appears to
-    broadcast the str-Enum member as if it were itself a
-    sequence/array rather than a scalar. Use a per-element comparison
-    (list/generator comprehension, or a plain Python loop) instead of
+    Use a per-element comparison (list/generator comprehension, 
+    or a plain Python loop) instead of
     a vectorized one when checking an array of RLOFOutcome values --
     see `binaries/population.py`'s own per-element loops, which are
     unaffected, and `tests/test_rlof_wiring.py` for the pattern to
@@ -107,7 +91,7 @@ def roche_lobe_radius(separation: float, mass_ratio: float) -> float:
     Accurate to within 1 per cent for 0 < q1 < infinity (HTP02's own
     stated accuracy for eq. 53). `mass_ratio` = M_this_star/M_other_star
     -- call with q2 = M2/M1 to get the companion's Roche-lobe radius
-    instead (HTP02's own note directly below eq. 53).
+    instead (cf. HTP02's note, eq. 53).
     """
     if mass_ratio <= 0.0:
         raise ValueError(f"mass_ratio must be positive, got {mass_ratio}")
@@ -126,24 +110,9 @@ def hg_q_crit(donor_mass: float, z: float, donor_age: float) -> float:
         q_crit = [1.67 - x + 2*(M_c1/M1)^5] / 2.13
 
     where x is the GB mass-radius exponent (giant_branch.py, eq. 47)
-    and M_c1 is the donor's core mass. This is HTP02's own GB q_crit
+    and M_c1 is the donor's core mass. This is HTP02's GB q_crit
     formula (eqs. 56-57), reused here for HG donors following Zuo & Li
-    (2014, MNRAS 442, 1980)'s eq. 1, which cites Shao & Li (in prep.)
-    for exactly this extension -- HTP02 itself uses a crude fixed
-    `q_crit=4` for HG donors, which it calls "rather approximate."
-    Since the formula and its constants (1.67, 2.13, the exponent 5)
-    are already trusted from HTP02, this needed no new coefficient-
-    verification round -- see
-    docs/science/rlof-ce-classifier-proposal.md's literature-findings
-    note. Unlike Q_CRIT_MS, this is not exposed as a single overridable
-    scalar (it is itself a formula, not one fixed number) -- override
-    `alpha_CE`/`lambda_CE`/`Q_CRIT_MS`-style parameters do not apply
-    here.
-
-    Propagates whatever ValueError `main_sequence.core_mass_hg` raises
-    (e.g. mass outside the M_HeF <= M < CORE_MASS_BGB_MAX_MASS range)
-    -- callers must be prepared for that, the same as for
-    `hg_radius`/`hg_luminosity`.
+    (2014, MNRAS 442, 1980)'s eq. 1.
     """
     core_mass = main_sequence.core_mass_hg(donor_mass, z, donor_age)
     x = giant_branch.mass_radius_exponent(z)
@@ -173,8 +142,8 @@ def classify_rlof(
     donor list (Sec. 2.7.1). HG donors (k=2): dynamically unstable
     RLOF (q1 > hg_q_crit(...)) forms a COMMON_ENVELOPE instead -- HG
     donors *are* CE-eligible. The CE outcome (survive vs. merge) is
-    not resolved here -- that's the energy-balance solve, not yet
-    implemented (see the proposal doc).
+    not resolved here -- that requires energy balance solution, ***not yet
+    implemented***.
     """
     try:
         donor_phase = main_sequence.phase(donor_mass, z, donor_age)
@@ -217,10 +186,6 @@ def find_rlof_onset(
     """Find the earliest RLOF onset for a binary across the MS and HG,
     checking both stars as the potential donor.
 
-    Named `find_rlof_onset` (not `find_rlof_onset`, an earlier,
-    now-inaccurate name) since it searches both phases -- see the
-    "Update, 2026-08-24" note below for when HG search was added.
-
     Returns (t_rlof, outcome, donor_is_star1):
         t_rlof: time (Myr) the earlier-overflowing star first fills its
             Roche lobe, or np.inf if neither star does so while on the
@@ -245,23 +210,15 @@ def find_rlof_onset(
     sufficient.
 
     Note on lifetime inconsistency: the search upper bound is Hurley
-    et al. (2000)'s own `t_BGB(mass, z)`, which is NOT necessarily
+    et al. (2000)'s `t_BGB(mass, z)`, which is NOT necessarily
     identical to Realta's separate, pre-existing `LifetimeTable`
     (Schaerer et al. 1993-based) used for the primary/secondary
-    supernova timing elsewhere in `BinaryPopulation`. The two
-    stellar-lifetime prescriptions are independently sourced and not
-    reconciled -- see docs/physics/interaction-prescriptions.md. In practice this means a
+    supernova timing elsewhere in `BinaryPopulation`. In practice this means a
     predicted RLOF event can, for a given binary, fall after that
     binary's Schaerer-table-based supernova already occurred; the
     caller (`BinaryPopulation.evolve()`) naturally suppresses such
     stale predictions via its own `nturn == 0` gate rather than this
     function trying to account for it.
-
-    Update, 2026-08-24: extended to also search the HG, using
-    `hg_radius()`. GB (k=3) and later phases remain unreachable -- a
-    donor that never overflows across MS+HG is treated as never
-    overflowing at all within this module's scope, even though a real
-    star would continue evolving past the GB.
     """
 
     def _radius_root(donor_mass: float, companion_mass: float) -> float | None:
@@ -358,9 +315,8 @@ def _widened_separation(
 
     Conservative transfer conserves total mass and orbital angular
     momentum, L = M1*M2*sqrt(G*a/(M1+M2)) (standard two-body reduced
-    formula; not itself an HTP02-specific result -- basic Keplerian
-    mechanics). With M1+M2 constant, L=const gives
-    a_f = a_i * (M1_i*M2_i / (M1_f*M2_f))^2.
+    formula)With M1+M2 constant, L=const gives
+            a_f = a_i * (M1_i*M2_i / (M1_f*M2_f))^2.
     """
     return separation_i * (m1_i * m2_i / (m1_f * m2_f)) ** 2
 
@@ -373,30 +329,20 @@ def apply_stable_mass_transfer(
 ) -> tuple[float, float, float]:
     """Instantaneous conservative stable mass transfer.
 
-    Not itself an HTP02 prescription -- HTP02 rate-integrates mass
-    transfer via Kelvin-Helmholtz/nuclear time-scales (eqs. 58-61),
-    which does not fit Realta's instantaneous-event architecture (see
-    docs/science/rlof-ce-classifier-proposal.md's "Decision" on
-    instantaneous vs. rate-integrated treatment). This is a named
-    simplification: mass moves from donor to companion, conservatively
+    Mass moves from donor to companion, conservatively
     (total mass and orbital angular momentum both conserved -- see
     `_widened_separation`), until the widened orbit's Roche-lobe
     radius for the donor exactly equals its current radius --
     physically, the point at which the system would newly detach.
     `donor_radius` is treated as fixed during this instantaneous jump
-    (no post-mass-loss stellar-structure response is modelled --
-    that is the Brček, Hirai, Mandel & Lower (2026) concern named in
-    the task brief but not available in this session; see the
-    proposal doc).
-
-    Only reachable for donor_mass < companion_mass (q1 < 1) -- the
+    This is only reachable for donor_mass < companion_mass (q1 < 1) -- the
     only case classify_rlof() ever labels STABLE_MASS_TRANSFER, since
     q1 > q_crit_ms (> ... in practice mostly > 1, see
     find_rlof_onset's module-level note) is IMMEDIATE_MERGER
     instead. For q1 < 1, conservative transfer widens the orbit (mass
     moves from the lighter to the heavier star), growing the Roche
     lobe until it exceeds the donor's (unchanged) radius -- this is
-    exactly why q1 < q_crit_ms is the *stable* regime.
+    why q1 < q_crit_ms is the stable regime.
 
     Returns (new_donor_mass, new_companion_mass, new_separation).
     """
@@ -433,8 +379,7 @@ def rejuvenate_ms_gainer(
     paper1-detailed-work-breakdown.md).
 
     Source: Tout, Aarseth, Pols & Eggleton (1997, MNRAS 291, 732),
-    Sec. 5.1 "Rejuvenation", eq. (41), verified directly against the
-    paper (not from memory) before implementing:
+    Sec. 5.1 "Rejuvenation", eq. (41):
 
         t' = (mu/mu') * (tau'_MS / tau_MS) * t
 
@@ -454,27 +399,18 @@ def rejuvenate_ms_gainer(
     the convective-core case using Tout et al.'s own eq. (41) directly
     (HTP02 itself does not reproduce that part, only cites it).
 
-    `tau_MS` is HTP02's own `main_sequence.t_ms(mass, z)` (needed for
+    `tau_MS` is HTP02's `main_sequence.t_ms(mass, z)` (needed for
     self-consistency with eq. 41, which is itself part of the same
-    Hurley/Tout fitting-formula family) -- NOT Realta's separate,
-    Schaerer-based `LifetimeTable` used elsewhere for the star's actual
-    supernova-triggering clock (see docs/physics/interaction-prescriptions.md's "two
-    independent lifetime prescriptions" note). Returns a dimensionless
-    remaining-lifetime FRACTION (not an absolute time), for the caller
-    to apply against whatever lifetime source it uses for absolute
+    Hurley/Tout fitting-formula family), not taken from `LifetimeTable` 
+    used elsewhere for the star's actual supernova-triggering clock. Returns 
+    a dimensionless remaining-lifetime FRACTION (not an absolute time), for 
+    the caller to apply against whatever lifetime source it uses for absolute
     timing -- see `binaries/population.py::evolve`'s STABLE_MASS_TRANSFER
-    branch, which applies this fraction to `LifetimeTable.get_lifetime`
-    at the new mass, matching the existing post-interaction-reset
-    convention (Hurley-sourced *fraction*, Schaerer-sourced *absolute*
-    scale) rather than switching the star onto a third, inconsistent
-    timing system.
+    branch.
 
     Assumes `age_before` is the star's true age since formation (i.e.
     it has not previously had its lifetime clock reset by an earlier
-    interaction) -- true for Realta's current scope, since an RLOF
-    event is only ever processed once per binary (`rlof_processed`).
-    Clamped to a small positive floor rather than exactly 0, to avoid
-    handing the caller a zero-duration remaining phase.
+    interaction).
     """
     t_ms_before = main_sequence.t_ms(mass_before, z)
     t_ms_after = main_sequence.t_ms(mass_after, z)
@@ -517,7 +453,7 @@ def apply_common_envelope(
             not the donor's pre-CE mass (the envelope has already
             been [partially] stripped by the time coalescence occurs).
 
-    Scope: assumes the companion is an MS star (k2 in {0,1}) at
+    Assumes the companion is an MS star (k2 in {0,1}) at
     `donor_age` -- HTP02's "effective core" treatment for an MS
     secondary (M'_c2 = companion_mass, R'_c2 = its actual radius,
     M'_env2 = 0, so it contributes no envelope-binding-energy term of
@@ -525,20 +461,12 @@ def apply_common_envelope(
     must ensure this themselves (mirrors `apply_stable_mass_transfer`,
     which makes the same kind of assumption about its inputs).
 
-    Named simplification for the merge case: unlike
-    `apply_stable_mass_transfer` (which reaches an exact, self-
-    consistent physical state), the merge branch here does NOT
-    implement HTP02's eqs. 74-77 (the partial-envelope-retention
-    Newton-Raphson solve for the merged star's final mass) -- that
+    The merge branch here does NOT implement HTP02's eqs. 74-77; that
     needs `R_i`, "the radius the system would have if it were to
-    coalesce immediately," which HTP02 does not define operationally
-    in a way this module could implement without further, separate
-    study. Instead, the envelope is assumed fully lost at coalescence
-    (a bare-core merger: `merge_stellar_masses(core_mass,
+    coalesce immediately,". Instead, the envelope is assumed fully lost 
+    at coalescence (a bare-core merger: `merge_stellar_masses(core_mass,
     companion_mass)`), the same "no partial retention" simplification
-    already used for `merge_stellar_masses` itself in the
-    IMMEDIATE_MERGER case. This is a real, documented gap, not an
-    oversight -- see docs/science/rlof-ce-classifier-proposal.md.
+    already used for `merge_stellar_masses` in the IMMEDIATE_MERGER case.
     """
     core_mass = main_sequence.core_mass_hg(donor_mass, z, donor_age)
     core_radius_val = remnant.core_radius(core_mass, donor_mass, z)
@@ -583,8 +511,6 @@ def merge_stellar_masses(donor_mass: float, companion_mass: float) -> float:
     mass-loss prescription for common-envelope mergers (the envelope
     binding-energy balance, eqs. 69-77) but not for a direct/dynamical
     MS-MS collision merger, which is the only merger channel reachable
-    by this module's current MS-only scope (see module docstring).
-    Absent an explicit prescription, conservative merging is the
-    natural default; this is a named simplification, not a citation.
+    by this module's current MS-only scope.
     """
     return donor_mass + companion_mass

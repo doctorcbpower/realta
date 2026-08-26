@@ -176,11 +176,11 @@ class MSLuminosityTable(DataTable):
     Source: FSPS (Conroy, Gunn & White 2009; python-fsps wrapper by
     Foreman-Mackey et al., MIT licensed), Kroupa IMF, instantaneous-burst
     single stellar population. Generation script:
-    notebooks_helper/generate_ms_luminosity_table.py.
+    scripts/generate_ms_luminosity_table.py.
 
     The tabulated values are baked to a fixed fiducial cluster mass of
-    FIDUCIAL_CLUSTER_MASS_MSUN (1e6 Msun, matching Power et al. 2009's
-    nominal model -- see each ms_lbol_*.dat file's header). get_lbol()
+    FIDUCIAL_CLUSTER_MASS_MSUN (1e6 Msun, matching Power et al. 2009
+    model -- see each ms_lbol_*.dat file's header). get_lbol()
     takes the *actual* total mass formed in the population being
     simulated and rescales linearly: SSP bolometric luminosity scales
     linearly with total mass formed at fixed IMF, metallicity and age.
@@ -192,12 +192,10 @@ class MSLuminosityTable(DataTable):
     1e6, so the un-rescaled MS curve would be ~11x too bright relative
     to that population's actual HMXB/accretion luminosity.
 
-    This is a genuinely different quantity from `IonizingPhotonTable`
-    (a separate, currently-unused ionising-photon-budget estimate for
-    M >= 8 Msun stars only) -- this table is the FULL population's
-    total bolometric luminosity (all masses, all evolutionary phases in
-    FSPS' isochrones). It is not part of the HMXB evolution loop and is
-    not consumed by BinaryPopulation.evolve() -- it exists for
+    This differs drom `IonizingPhotonTable` -- this table is the FULL 
+    population's total bolometric luminosity (all masses, all evolutionary 
+    phases in FSPS' isochrones). It is not part of the HMXB evolution loop 
+    and is not consumed by BinaryPopulation.evolve() -- it exists for
     reproducing Fig. 1 of Power et al. (2009) (the "Luminosity - MS
     lifetime" curve) and similar population-luminosity comparisons.
 
@@ -218,8 +216,9 @@ class MSLuminosityTable(DataTable):
     }
 
     # Cluster mass baked into the tabulated FSPS values (see class
-    # docstring and notebooks_helper/generate_ms_luminosity_table.py's
+    # docstring and scripts/generate_ms_luminosity_table.py's
     # CLUSTER_MASS_MSUN). Must match the generation script exactly.
+    
     FIDUCIAL_CLUSTER_MASS_MSUN = 1.0e6
 
     def __init__(self, imetal: int = 2, data_dir: str | None = None):
@@ -266,10 +265,9 @@ class MSLuminosityTable(DataTable):
 
         total_mass_msun: total stellar mass actually formed in the
         population being simulated -- the sum of ALL sampled IMF masses
-        (e.g. BinaryPopulation.total_mass_msun), not just the M >= mcut
-        subset. Required to rescale the table's fiducial-1e6-Msun values
-        to the population actually being compared against -- see the
-        class docstring for why this matters.
+        (e.g. BinaryPopulation.total_mass_msun). Required to rescale the 
+        table's fiducial 1e6 Msun values to the population actually being 
+        compared against.
 
         Returns 0.0 for ages outside the tabulated range (including
         age_myr <= 0) or if the table failed to load, rather than
@@ -298,27 +296,21 @@ class UVLuminosityTable(DataTable):
     """Population-total far-UV (GALEX FUV, ~1528 A) luminosity vs time.
 
     Paper 1's L_UV(t) observable (docs/science/research-programme.md,
-    Figs. 1-2) -- like `MSLuminosityTable`, this is this session's own
-    addition, not part of either Power et al. paper. Source: FSPS,
-    Kroupa IMF, instantaneous-burst single stellar population, GALEX
-    FUV band. Generation script: scripts/generate_fuv_luminosities.py
+    Figs. 1-2). Source: FSPS, Kroupa IMF, instantaneous burst single 
+    stellar population, GALEX FUV band. 
+    
+    Generation script: scripts/generate_fuv_luminosities.py
     (band-choice rationale and the m_AB -> nu*L_nu conversion are
-    documented there; band decision reviewed in
-    docs/science/paper1-binary-interaction-proposal.md).
+    documented there; see docs/science/paper1-binary-interaction-proposal.md).
 
-    Same fiducial-mass-then-rescale convention as `MSLuminosityTable`:
-    tabulated values are baked to FIDUCIAL_CLUSTER_MASS_MSUN (1e6 Msun),
+    Same mass rescaling convention as `MSLuminosityTable`:
+    tabulated values assume FIDUCIAL_CLUSTER_MASS_MSUN (1e6 Msun),
     and `get_luv()` rescales linearly to the actual population's
-    `total_mass_msun`. Same domain-of-validity note applies (0.1-100
-    Myr; no extrapolation; imetal=1 uses FSPS's lowest available
-    metallicity as a documented Z=0 proxy).
+    `total_mass_msun`. Valid domain - 0.1-100 Myr; no extrapolation; 
+    imetal=1 uses FSPS's lowest available metallicity as a documented Z=0 proxy).
 
     The `fuv_lbol_z*.dat` data files (generated via FSPS + SPS_HOME)
-    now exist in `src/realta/data/` -- see docs/physics/observables.md.
-    This class still degrades gracefully exactly like
-    `MSLuminosityTable` does for a missing file (e.g. a custom
-    `data_dir` that doesn't have them): `get_luv()` returns 0.0 rather
-    than raising.
+    exist in `src/realta/data/` -- see docs/physics/observables.md.
     """
 
     METAL_FILES: ClassVar[dict[int, str]] = {
@@ -374,8 +366,8 @@ class UVLuminosityTable(DataTable):
     def get_luv(self, age_myr: float, total_mass_msun: float) -> float:
         """Total population far-UV luminosity at a given age, erg/s.
 
-        Same rescaling/domain-of-validity behaviour as
-        `MSLuminosityTable.get_lbol()` -- see that method's docstring.
+        Same mass rescaling as `MSLuminosityTable.get_lbol()` -- see 
+        that method's docstring.
         """
         if not self.loaded or len(self.log_age) < 2 or age_myr <= 0.0:
             return 0.0

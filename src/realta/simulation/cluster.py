@@ -70,9 +70,9 @@ class ClusterSimulation:
             tnow = step * dt
             lumx_tot, nphot_tot, nactive, ndead = self.population.evolve(tnow, dt)
 
-            # A2/A3: population-level L_bol/L_UV (FSPS SSP tables,
+            # Population-level L_bol/L_UV (FSPS SSP tables,
             # rescaled to this run's actual total_mass_msun -- see
-            # MSLuminosityTable/UVLuminosityTable's own docstrings) and
+            # MSLuminosityTable/UVLuminosityTable's docstrings) and
             # the massive-star population's own ionizing-photon output
             # (independent of L_X/HMXB activity, unlike nphot_tot's
             # existing NPHOT_PER_LUMX-based accretion proxy -- see
@@ -83,6 +83,7 @@ class ClusterSimulation:
             # UV model exists (same scope note as that script's own).
             # lumx_tot/nphot_tot themselves are unchanged -- this is
             # purely additive to the results dict.
+            
             ms_lbol = self.ms_table.get_lbol(tnow, self.population.total_mass_msun)
             ms_luv = self.uv_table.get_luv(tnow, self.population.total_mass_msun)
             qh_ms_tot = self._qh_ms_tot(tnow)
@@ -106,7 +107,7 @@ class ClusterSimulation:
 
     def _qh_ms_tot(self, tnow: float) -> float:
         """Total ionizing-photon rate (photons/s) from currently-alive
-        M >= 8 Msun massive stars in the population (A3, docs/science/
+        M >= 8 Msun massive stars in the population (docs/science/
         paper1-detailed-work-breakdown.md) -- independent of L_X/HMXB
         activity, unlike the pre-existing `nphot_tot`
         (`BinaryPopulation.NPHOT_PER_LUMX * lumx_tot`, a fixed
@@ -214,9 +215,8 @@ class ClusterSimulation:
             )
             # lbol_tot/luv_tot/qh_tot appended, not inserted, so any
             # existing simple column-index parsing of the first five
-            # columns is unaffected (A2/A3 additions) -- nothing else
-            # in this repo currently reads this file back (confirmed
-            # via grep before adding these).
+            # columns is unaffected
+            
             f.write(
                 "# t/Myrs lx_tot/ergs nphot npop ndead "
                 "lbol_tot/ergs luv_tot/ergs qh_tot/s^-1\n"
