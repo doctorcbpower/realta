@@ -64,7 +64,10 @@ This makes `interaction_boost` structurally inert for any realistic
 massive-star binary under the current phase structure — see
 [`post-sn-rlof.md`](post-sn-rlof.md) for the channel that covers the
 astrophysically dominant regime this exposes (post-SN secondary RLOF
-onto the compact primary).
+onto the compact primary). A literature-sourced fix (allowing a
+q1>1 donor to undergo stable, mass-ratio-reversing Case-A transfer) is
+proposed but not implemented — see
+[`case-a-q1-gt-1-proposal.md`](case-a-q1-gt-1-proposal.md).
 
 Config validation: `config.py::SimulationConfig.__post_init__`
 (`binary_prescription` enum, `[0,1]`/non-negative bounds on the four

@@ -24,3 +24,13 @@
   returns mass only, no type label.
 - **No accretion-UV spectral model** — `L_UV(t)` is MS-only; no HMXB
   contribution.
+- **`q_crit_ms`/`interaction_boost` structurally inert for q1>1
+  (donor heavier than companion)** — the automatically-selected RLOF
+  donor is almost always the heavier star (`docs/physics/rlof-classifier.md`'s
+  "Donor-selection property"), which `apply_stable_mass_transfer`
+  cannot process as a stable outcome regardless of `q_crit_ms`'s value.
+  Literature-sourced fix proposal and full audit:
+  [`docs/physics/case-a-q1-gt-1-proposal.md`](physics/case-a-q1-gt-1-proposal.md).
+  Deferred to future work; not needed for the current paper, which
+  drops the affected variants (`enhanced_interaction`,
+  `enhanced_mergers`, `wind_capture`) from its main text instead.
