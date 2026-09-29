@@ -79,7 +79,9 @@ massive star (`q1 > 1`). Consequences:
   MS donors in practice.
 - `q_crit_ms` has limited leverage on the outcome distribution — see
   [`interaction-prescriptions.md`](interaction-prescriptions.md)'s
-  `STABLE_MASS_TRANSFER` structural-limit note.
+  `STABLE_MASS_TRANSFER` structural-limit note, and
+  [`case-a-q1-gt-1-proposal.md`](case-a-q1-gt-1-proposal.md) for a
+  literature-sourced fix (not implemented).
 - Cross-checked against Xu et al. (2025, A&A 704, A218,
   arXiv:2503.23876)'s SMC statistics (`M1=5-100` Msun, `q=0.3-0.95`,
   `P=1-3162` d: 8% post-mass-transfer, 7% merger observed). Realta
